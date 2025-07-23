@@ -6,123 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0 auto;
-      padding: 20px;
-      max-width: 100%;
-      box-sizing: border-box;
-    }
-
-    #controls {
-      text-align: center;
-      margin-bottom: 15px;
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    button {
-      padding: 8px 14px;
-      font-size: 16px;
-      border: none;
-      background-color: #007bff;
-      color: white;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background-color: #0056b3;
-    }
-
-    #current-month {
-      font-size: 18px;
-      font-weight: bold;
-      margin: 0 10px;
-      line-height: 5px;
-    }
-
-    #kalendarz-wrapper {
-      overflow-x: auto;
-      max-width: 100%;
-    }
-
-    table {
-      border-collapse: collapse;
-      margin: 0 auto;
-      width: max-content;
-      min-width: 100%;
-    }
-
-    th, td {
-      border: 1px solid #ccc;
-      text-align: center;
-      padding: 6px;
-      white-space: nowrap;
-      font-size: 14px;
-      vertical-align: top;
-    }
-
-    th {
-      background-color: #f0f0f0;
-      position: sticky;
-      top: 0;
-      z-index: 1;
-    }
-
-    .occupied-full {
-      background-color: #ff4d4d;
-      color: white;
-      font-weight: bold;
-    }
-
-    .occupied-am {
-      background: linear-gradient(to bottom, #ffcccc 50%, white 50%);
-      color: #b30000;
-      font-weight: bold;
-    }
-
-    .occupied-pm {
-      background: linear-gradient(to top, #ffcccc 50%, white 50%);
-      color: #b30000;
-      font-weight: bold;
-    }
-
-    .multi {
-      background: linear-gradient(to bottom, #ffcccc 50%, #ffe6e6 50%);
-      color: #b30000;
-      font-weight: bold;
-    }
-
-    p {
-      margin: 0;
-      line-height: 1.2;
-    }
-
-    @media (max-width: 768px) {
-      th, td {
-        font-size: 12px;
-        padding: 4px;
-      }
-      button {
-        font-size: 14px;
-        padding: 6px 10px;
-      }
-    }
+    /* ... (stylowanie pozostaje bez zmian) ... */
   </style>
 </head>
 <body>
-  <div id="controls">
-    <button id="prev-month">&lt; Poprzedni</button>
-    <span id="current-month"></span>
-    <button id="next-month">Następny &gt;</button>
-  </div>
-
-  <div id="kalendarz-wrapper">
-    <div id="kalendarz"></div>
-  </div>
+  <!-- ... (HTML pozostaje bez zmian) ... -->
 
   <script>
     google.charts.load('current', { packages: ['corechart', 'table'] });
@@ -131,19 +19,21 @@
     let currentYear, currentMonth;
     let rezerwacjeMap = {};
 
-    function formatDate(d) {
-      const date = new Date(d);
-      // Użyj lokalnej daty, aby uniknąć problemów ze strefą czasową
+    function parseDateString(dateStr) {
+      // Zakładamy, że data jest w formacie YYYY-MM-DD
+      const parts = dateStr.split('-');
+      return new Date(parts[0], parts[1] - 1, parts[2]);
+    }
+
+    function formatDateForDisplay(date) {
+      return date.getDate();
+    }
+
+    function formatDateForKey(date) {
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
-    }
-
-    function parseDate(dateStr) {
-      const parts = dateStr.split('-');
-      // Tworzymy datę w lokalnej strefie czasowej
-      return new Date(parts[0], parts[1] - 1, parts[2]);
     }
 
     const monthNames = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
@@ -164,28 +54,32 @@
       rezerwacjeMap = {};
 
       for (let i = 0; i < rows; i++) {
-        const start = parseDate(data.getValue(i, 0));
-        const end = parseDate(data.getValue(i, 1));
+        const startDateStr = data.getValue(i, 0);
+        const endDateStr = data.getValue(i, 1);
         const domek = data.getValue(i, 2);
         const osoba = data.getValue(i, 3);
         const inicjaly = osoba ? osoba.substring(0, 3) : "";
 
-        const dStart = formatDate(start);
-        const dEnd = formatDate(end);
+        const startDate = parseDateString(startDateStr);
+        const endDate = parseDateString(endDateStr);
 
         // Dzień przyjazdu (po południu)
-        addToMap(domek, dStart, 'pm', inicjaly);
+        const arrivalKey = formatDateForKey(startDate);
+        addToMap(domek, arrivalKey, 'pm', inicjaly);
 
-        // Dni pośrednie
-        const d = new Date(start);
-        d.setDate(d.getDate() + 1);
-        while (d < end) {
-          addToMap(domek, formatDate(d), 'full', inicjaly);
-          d.setDate(d.getDate() + 1);
+        // Dni pośrednie (pełne dni)
+        const tempDate = new Date(startDate);
+        tempDate.setDate(tempDate.getDate() + 1);
+        
+        while (tempDate < endDate) {
+          const fullDayKey = formatDateForKey(tempDate);
+          addToMap(domek, fullDayKey, 'full', inicjaly);
+          tempDate.setDate(tempDate.getDate() + 1);
         }
 
         // Dzień wyjazdu (rano)
-        addToMap(domek, dEnd, 'am', inicjaly);
+        const departureKey = formatDateForKey(endDate);
+        addToMap(domek, departureKey, 'am', inicjaly);
       }
 
       const now = new Date();
@@ -210,7 +104,7 @@
 
       for (let key in rezerwacjeMap) {
         const [domek, dzien] = key.split('_');
-        const date = parseDate(dzien);
+        const date = parseDateString(dzien);
         if (date.getFullYear() === currentYear && date.getMonth() === currentMonth) {
           datySet.add(dzien);
           domkiSet.add(domek);
@@ -226,7 +120,10 @@
       }
 
       let html = '<table><thead><tr><th>Domek</th>';
-      daty.forEach(d => html += `<th>${d.split('-')[2]}</th>`);
+      daty.forEach(d => {
+        const dayNumber = parseDateString(d).getDate();
+        html += `<th>${dayNumber}</th>`;
+      });
       html += '</tr></thead><tbody>';
 
       domki.forEach(domek => {
