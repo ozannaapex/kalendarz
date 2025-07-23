@@ -90,6 +90,12 @@
       font-weight: bold;
     }
 
+    .multi {
+      background: linear-gradient(to bottom, #ffcccc 50%, #ffe6e6 50%);
+      color: #b30000;
+      font-weight: bold;
+    }
+
     p {
       margin: 0;
       line-height: 1.2;
@@ -123,7 +129,7 @@
     google.charts.setOnLoadCallback(drawCalendar);
 
     let currentYear, currentMonth;
-    let allRezerwacje = [];
+    let rezerwacjeMap = {};
 
     function formatDate(d) {
       const date = new Date(d);
@@ -145,45 +151,49 @@
 
       const data = response.getDataTable();
       const rows = data.getNumberOfRows();
-      allRezerwacje = [];
-
-      const rezerwacjeMap = {};
+      rezerwacjeMap = {};
 
       for (let i = 0; i < rows; i++) {
-        const dataOd = new Date(data.getValue(i, 0));
-        const dataDo = new Date(data.getValue(i, 1));
+        const start = new Date(data.getValue(i, 0));
+        const end = new Date(data.getValue(i, 1));
         const domek = data.getValue(i, 2);
-        const imieNazwisko = data.getValue(i, 3);
-        const inicjaly = imieNazwisko ? imieNazwisko.substring(0, 3) : '';
+        const osoba = data.getValue(i, 3);
+        const inicjaly = osoba ? osoba.substring(0, 3) : "";
 
-        const dzienOd = formatDate(dataOd);
-        const dzienDo = formatDate(dataDo);
+        const dStart = formatDate(start);
+        const dEnd = formatDate(end);
 
-        for (let d = new Date(dataOd); d <= dataDo; d.setDate(d.getDate() + 1)) {
-          const dzien = formatDate(d);
-          let typ = 'full';
-          if (dzien === dzienOd) typ = 'pm';
-          else if (dzien === dzienDo) typ = 'am';
+        // Dzień przyjazdu (po południu)
+        addToMap(domek, dStart, 'pm', inicjaly);
 
-          const key = `${domek}_${dzien}`;
-          if (!rezerwacjeMap[key]) {
-            rezerwacjeMap[key] = [];
-          }
-          rezerwacjeMap[key].push({ inicjaly, typ });
+        // Dni pośrednie
+        const d = new Date(start);
+        d.setDate(d.getDate() + 1);
+        while (d < end) {
+          addToMap(domek, formatDate(d), 'full', inicjaly);
+          d.setDate(d.getDate() + 1);
         }
+
+        // Dzień wyjazdu (rano)
+        addToMap(domek, dEnd, 'am', inicjaly);
       }
 
       const now = new Date();
       currentYear = now.getFullYear();
       currentMonth = now.getMonth();
-
-      renderCalendar(currentYear, currentMonth, rezerwacjeMap);
-      setupNavigation(rezerwacjeMap);
+      renderCalendar();
+      setupNavigation();
     }
 
-    function renderCalendar(year, month, rezerwacjeMap) {
+    function addToMap(domek, dzien, typ, inicjaly) {
+      const key = `${domek}_${dzien}`;
+      if (!rezerwacjeMap[key]) rezerwacjeMap[key] = [];
+      rezerwacjeMap[key].push({ typ, inicjaly });
+    }
+
+    function renderCalendar() {
       const kalendarzDiv = document.getElementById('kalendarz');
-      document.getElementById('current-month').textContent = `${monthNames[month]} ${year}`;
+      document.getElementById('current-month').textContent = `${monthNames[currentMonth]} ${currentYear}`;
 
       const datySet = new Set();
       const domkiSet = new Set();
@@ -191,7 +201,7 @@
       for (let key in rezerwacjeMap) {
         const [domek, dzien] = key.split('_');
         const date = new Date(dzien);
-        if (date.getFullYear() === year && date.getMonth() === month) {
+        if (date.getFullYear() === currentYear && date.getMonth() === currentMonth) {
           datySet.add(dzien);
           domkiSet.add(domek);
         }
@@ -206,10 +216,7 @@
       }
 
       let html = '<table><thead><tr><th>Domek</th>';
-      daty.forEach(d => {
-        const day = d.split('-')[2];
-        html += `<th>${day}</th>`;
-      });
+      daty.forEach(d => html += `<th>${d.split('-')[2]}</th>`);
       html += '</tr></thead><tbody>';
 
       domki.forEach(domek => {
@@ -218,14 +225,15 @@
           const key = `${domek}_${dzien}`;
           const wpisy = rezerwacjeMap[key];
 
-          if (wpisy && wpisy.length > 0) {
-            let klasy = wpisy.map(w => w.typ === 'am' ? 'occupied-am' : w.typ === 'pm' ? 'occupied-pm' : 'occupied-full');
-            let klasa = klasy.includes('occupied-full') ? 'occupied-full' : klasy.includes('occupied-pm') && klasy.includes('occupied-am') ? 'occupied-full' : klasy[0];
+          if (wpisy) {
+            let klasy = new Set(wpisy.map(w => w.typ === 'full' ? 'occupied-full' : w.typ === 'pm' ? 'occupied-pm' : 'occupied-am'));
+            let klasa = 'multi';
+            if (klasy.size === 1) klasa = [...klasy][0];
 
-            const paragrafy = wpisy.map(w => `<p>Zajęte</p><p>${w.inicjaly}</p>`).join('');
-            html += `<td class="${klasa}">${paragrafy}</td>`;
+            let tekst = wpisy.map(w => `<p>Zajęte</p><p>${w.inicjaly}</p>`).join('');
+            html += `<td class="${klasa}">${tekst}</td>`;
           } else {
-            html += `<td></td>`;
+            html += '<td></td>';
           }
         });
         html += '</tr>';
@@ -235,14 +243,14 @@
       kalendarzDiv.innerHTML = html;
     }
 
-    function setupNavigation(rezerwacjeMap) {
+    function setupNavigation() {
       document.getElementById('prev-month').onclick = () => {
         currentMonth--;
         if (currentMonth < 0) {
           currentMonth = 11;
           currentYear--;
         }
-        renderCalendar(currentYear, currentMonth, rezerwacjeMap);
+        renderCalendar();
       };
 
       document.getElementById('next-month').onclick = () => {
@@ -251,7 +259,7 @@
           currentMonth = 0;
           currentYear++;
         }
-        renderCalendar(currentYear, currentMonth, rezerwacjeMap);
+        renderCalendar();
       };
     }
   </script>
