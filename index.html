@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Kalendarz</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
   <style>
     body {
@@ -71,33 +71,33 @@
       z-index: 1;
     }
 
- .occupied {
-    background-color: #ff4d4d;
-    font-weight: bold;
-    cursor: default;
-    color: white;
-  }
+    .occupied {
+      background-color: #ff4d4d;
+      font-weight: bold;
+      cursor: default;
+      color: white;
+    }
 
-  .partial-start {
-    background: linear-gradient(to right, #ff4d4d 50%, white 50%);
-    font-weight: bold;
-    color: white;
-    position: relative;
-  }
+    .partial-start {
+      background: linear-gradient(to right, #ff4d4d 50%, white 50%);
+      font-weight: bold;
+      color: white;
+      position: relative;
+    }
 
-  .partial-end {
-    background: linear-gradient(to left, #ff4d4d 50%, white 50%);
-    font-weight: bold;
-    color: white;
-    position: relative;
-  }
+    .partial-end {
+      background: linear-gradient(to left, #ff4d4d 50%, white 50%);
+      font-weight: bold;
+      color: white;
+      position: relative;
+    }
 
-  .partial-both {
-    background: linear-gradient(to right, #ff4d4d 50%, #ff4d4d 50%);
-    font-weight: bold;
-    color: white;
-    position: relative;
-  }
+    .partial-both {
+      background-color: #ff4d4d;
+      font-weight: bold;
+      color: white;
+      position: relative;
+    }
 
     @media (max-width: 768px) {
       th, td {
@@ -114,6 +114,11 @@
       width: 100% !important;
       max-width: 960px;
       overflow-x: auto;
+    }
+
+    td p {
+      margin: 0;
+      line-height: 1.2em;
     }
   </style>
 </head>
@@ -162,21 +167,87 @@
         const dataDo = new Date(data.getValue(i, 1));
         const domek = data.getValue(i, 2);
         const imieNazwisko = data.getValue(i, 3);
-        const inicjaly = imieNazwisko ? imieNazwisko.substring(0, 3) : '';
-        const nazwisko = Zajęty - ${inicjaly};
+        const inicjaly = imieNazwisko ? imieNazwisko.substring(0, 3).toUpperCase() : '';
 
+        const dniRezerwacji = [];
         for (let d = new Date(dataOd); d <= dataDo; d.setDate(d.getDate() + 1)) {
-          const dzien = formatDate(d);
+          dniRezerwacji.push(new Date(d));
+        }
+
+        dniRezerwacji.forEach((dzien, idx) => {
+          const dzienStr = formatDate(dzien);
           let typ = 'pełny';
-          if (dzien === formatDate(dataOd)) typ = 'start';
-          else if (dzien === formatDate(dataDo)) typ = 'end';
+
+          if (formatDate(dataOd) === formatDate(dataDo)) {
+            typ = 'both';
+          } else if (idx === 0) {
+            typ = 'start';
+          } else if (idx === dniRezerwacji.length - 1) {
+            typ = 'end';
+          }
 
           allRezerwacje.push({
             domek,
-            dzien,
-            nazwisko,
+            dzien: dzienStr,
+            inicjaly,
             typ
           });
+        });
+      }
+
+      // Grupowanie rezerwacji po domek i dzień
+      const rezerwacjeMap = new Map();
+
+      allRezerwacje.forEach(r => {
+        const key = r.domek + '|' + r.dzien;
+        if (!rezerwacjeMap.has(key)) {
+          rezerwacjeMap.set(key, []);
+        }
+        rezerwacjeMap.get(key).push(r);
+      });
+
+      allRezerwacje = [];
+
+      for (const [key, entries] of rezerwacjeMap.entries()) {
+        const domek = entries[0].domek;
+        const dzien = entries[0].dzien;
+
+        const hasStart = entries.some(e => e.typ === 'start');
+        const hasEnd = entries.some(e => e.typ === 'end');
+        const inicjalyStart = entries.find(e => e.typ === 'start')?.inicjaly || '';
+        const inicjalyEnd = entries.find(e => e.typ === 'end')?.inicjaly || '';
+
+        if (hasStart && hasEnd) {
+          allRezerwacje.push({
+            domek,
+            dzien,
+            inicjaly: inicjalyStart + ' ' + inicjalyEnd,
+            typ: 'both'
+          });
+        } else if (hasStart) {
+          allRezerwacje.push({
+            domek,
+            dzien,
+            inicjaly: inicjalyStart,
+            typ: 'start'
+          });
+        } else if (hasEnd) {
+          allRezerwacje.push({
+            domek,
+            dzien,
+            inicjaly: inicjalyEnd,
+            typ: 'end'
+          });
+        } else {
+          const full = entries.find(e => e.typ === 'pełny');
+          if (full) {
+            allRezerwacje.push({
+              domek,
+              dzien,
+              inicjaly: full.inicjaly,
+              typ: 'pełny'
+            });
+          }
         }
       }
 
@@ -190,7 +261,7 @@
 
     function renderCalendar(year, month) {
       const kalendarzDiv = document.getElementById('kalendarz');
-      document.getElementById('current-month').textContent = ${monthNames[month]} ${year};
+      document.getElementById('current-month').textContent = `${monthNames[month]} ${year}`;
 
       const filteredRezerwacje = allRezerwacje.filter(r => {
         const date = new Date(r.dzien);
@@ -216,21 +287,23 @@
       let html = '<table><thead><tr><th>Domek</th>';
       daty.forEach(d => {
         const day = d.split('-')[2];
-        html += <th>${day}</th>;
+        html += `<th>${day}</th>`;
       });
       html += '</tr></thead><tbody>';
 
       domki.forEach(domek => {
-        html += <tr><td>${domek}</td>;
+        html += `<tr><td>${domek}</td>`;
         daty.forEach(dzien => {
           const wpis = filteredRezerwacje.find(r => r.domek === domek && r.dzien === dzien);
           if (wpis) {
             let klasa = 'occupied';
             if (wpis.typ === 'start') klasa = 'partial-start';
             else if (wpis.typ === 'end') klasa = 'partial-end';
-            html += <td class="${klasa}">${wpis.nazwisko}</td>;
+            else if (wpis.typ === 'both') klasa = 'partial-both';
+
+            html += `<td class="${klasa}"><p>Zajęte</p><p>${wpis.inicjaly}</p></td>`;
           } else {
-            html += <td></td>;
+            html += `<td></td>`;
           }
         });
         html += '</tr>';
