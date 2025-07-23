@@ -133,7 +133,17 @@
 
     function formatDate(d) {
       const date = new Date(d);
-      return date.toISOString().split('T')[0];
+      // Użyj lokalnej daty, aby uniknąć problemów ze strefą czasową
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function parseDate(dateStr) {
+      const parts = dateStr.split('-');
+      // Tworzymy datę w lokalnej strefie czasowej
+      return new Date(parts[0], parts[1] - 1, parts[2]);
     }
 
     const monthNames = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
@@ -154,8 +164,8 @@
       rezerwacjeMap = {};
 
       for (let i = 0; i < rows; i++) {
-        const start = new Date(data.getValue(i, 0));
-        const end = new Date(data.getValue(i, 1));
+        const start = parseDate(data.getValue(i, 0));
+        const end = parseDate(data.getValue(i, 1));
         const domek = data.getValue(i, 2);
         const osoba = data.getValue(i, 3);
         const inicjaly = osoba ? osoba.substring(0, 3) : "";
@@ -200,7 +210,7 @@
 
       for (let key in rezerwacjeMap) {
         const [domek, dzien] = key.split('_');
-        const date = new Date(dzien);
+        const date = parseDate(dzien);
         if (date.getFullYear() === currentYear && date.getMonth() === currentMonth) {
           datySet.add(dzien);
           domkiSet.add(domek);
