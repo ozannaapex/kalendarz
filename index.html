@@ -54,3 +54,206 @@
       margin: 0 auto;
       width: max-content;
       min-width: 100%;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      text-align: center;
+      padding: 6px;
+      white-space: nowrap;
+      font-size: 14px;
+      vertical-align: top;
+    }
+
+    th {
+      background-color: #f0f0f0;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    .occupied-full {
+      background-color: #ff4d4d;
+      color: white;
+      font-weight: bold;
+    }
+
+    .occupied-am {
+      background: linear-gradient(to bottom, #ffcccc 50%, white 50%);
+      color: #b30000;
+      font-weight: bold;
+    }
+
+    .occupied-pm {
+      background: linear-gradient(to top, #ffcccc 50%, white 50%);
+      color: #b30000;
+      font-weight: bold;
+    }
+
+    p {
+      margin: 0;
+      line-height: 1.2;
+    }
+
+    @media (max-width: 768px) {
+      th, td {
+        font-size: 12px;
+        padding: 4px;
+      }
+      button {
+        font-size: 14px;
+        padding: 6px 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <button id="prev-month">&lt; Poprzedni</button>
+    <span id="current-month"></span>
+    <button id="next-month">Następny &gt;</button>
+  </div>
+
+  <div id="kalendarz-wrapper">
+    <div id="kalendarz"></div>
+  </div>
+
+  <script>
+    google.charts.load('current', { packages: ['corechart', 'table'] });
+    google.charts.setOnLoadCallback(drawCalendar);
+
+    let currentYear, currentMonth;
+    let allRezerwacje = [];
+
+    function formatDate(d) {
+      const date = new Date(d);
+      return date.toISOString().split('T')[0];
+    }
+
+    const monthNames = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
+
+    function drawCalendar() {
+      const query = new google.visualization.Query('https://docs.google.com/spreadsheets/d/1ktIEbiKcIvKHN3N8hkBz5_1UNDJa5a78xYNuf4hoWN4/gviz/tq?sheet=Rezerwacje');
+      query.send(handleQueryResponse);
+    }
+
+    function handleQueryResponse(response) {
+      if (response.isError()) {
+        document.getElementById('kalendarz').innerHTML = 'Błąd w pobieraniu danych: ' + response.getMessage();
+        return;
+      }
+
+      const data = response.getDataTable();
+      const rows = data.getNumberOfRows();
+      allRezerwacje = [];
+
+      const rezerwacjeMap = {};
+
+      for (let i = 0; i < rows; i++) {
+        const dataOd = new Date(data.getValue(i, 0));
+        const dataDo = new Date(data.getValue(i, 1));
+        const domek = data.getValue(i, 2);
+        const imieNazwisko = data.getValue(i, 3);
+        const inicjaly = imieNazwisko ? imieNazwisko.substring(0, 3) : '';
+
+        const dzienOd = formatDate(dataOd);
+        const dzienDo = formatDate(dataDo);
+
+        for (let d = new Date(dataOd); d <= dataDo; d.setDate(d.getDate() + 1)) {
+          const dzien = formatDate(d);
+          let typ = 'full';
+          if (dzien === dzienOd) typ = 'pm';
+          else if (dzien === dzienDo) typ = 'am';
+
+          const key = `${domek}_${dzien}`;
+          if (!rezerwacjeMap[key]) {
+            rezerwacjeMap[key] = [];
+          }
+          rezerwacjeMap[key].push({ inicjaly, typ });
+        }
+      }
+
+      const now = new Date();
+      currentYear = now.getFullYear();
+      currentMonth = now.getMonth();
+
+      renderCalendar(currentYear, currentMonth, rezerwacjeMap);
+      setupNavigation(rezerwacjeMap);
+    }
+
+    function renderCalendar(year, month, rezerwacjeMap) {
+      const kalendarzDiv = document.getElementById('kalendarz');
+      document.getElementById('current-month').textContent = `${monthNames[month]} ${year}`;
+
+      const datySet = new Set();
+      const domkiSet = new Set();
+
+      for (let key in rezerwacjeMap) {
+        const [domek, dzien] = key.split('_');
+        const date = new Date(dzien);
+        if (date.getFullYear() === year && date.getMonth() === month) {
+          datySet.add(dzien);
+          domkiSet.add(domek);
+        }
+      }
+
+      const daty = Array.from(datySet).sort();
+      const domki = Array.from(domkiSet).sort();
+
+      if (daty.length === 0) {
+        kalendarzDiv.innerHTML = "<p style='text-align:center;'>Brak rezerwacji w tym miesiącu.</p>";
+        return;
+      }
+
+      let html = '<table><thead><tr><th>Domek</th>';
+      daty.forEach(d => {
+        const day = d.split('-')[2];
+        html += `<th>${day}</th>`;
+      });
+      html += '</tr></thead><tbody>';
+
+      domki.forEach(domek => {
+        html += `<tr><td>${domek}</td>`;
+        daty.forEach(dzien => {
+          const key = `${domek}_${dzien}`;
+          const wpisy = rezerwacjeMap[key];
+
+          if (wpisy && wpisy.length > 0) {
+            let klasy = wpisy.map(w => w.typ === 'am' ? 'occupied-am' : w.typ === 'pm' ? 'occupied-pm' : 'occupied-full');
+            let klasa = klasy.includes('occupied-full') ? 'occupied-full' : klasy.includes('occupied-pm') && klasy.includes('occupied-am') ? 'occupied-full' : klasy[0];
+
+            const paragrafy = wpisy.map(w => `<p>Zajęte</p><p>${w.inicjaly}</p>`).join('');
+            html += `<td class="${klasa}">${paragrafy}</td>`;
+          } else {
+            html += `<td></td>`;
+          }
+        });
+        html += '</tr>';
+      });
+
+      html += '</tbody></table>';
+      kalendarzDiv.innerHTML = html;
+    }
+
+    function setupNavigation(rezerwacjeMap) {
+      document.getElementById('prev-month').onclick = () => {
+        currentMonth--;
+        if (currentMonth < 0) {
+          currentMonth = 11;
+          currentYear--;
+        }
+        renderCalendar(currentYear, currentMonth, rezerwacjeMap);
+      };
+
+      document.getElementById('next-month').onclick = () => {
+        currentMonth++;
+        if (currentMonth > 11) {
+          currentMonth = 0;
+          currentYear++;
+        }
+        renderCalendar(currentYear, currentMonth, rezerwacjeMap);
+      };
+    }
+  </script>
+</body>
+</html>
