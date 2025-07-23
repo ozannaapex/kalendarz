@@ -142,7 +142,7 @@
         const domek = data.getValue(i, 2);
         const imieNazwisko = data.getValue(i, 3);
         const inicjaly = imieNazwisko ? imieNazwisko.substring(0, 3) : '';
-        const nazwisko = `Zajęty (${inicjaly}`);
+        const nazwisko = `Zajęty - ${inicjaly}`;
 
         for (let d = new Date(dataOd); d < dataDo; d.setDate(d.getDate() + 1)) {
           allRezerwacje.push({
