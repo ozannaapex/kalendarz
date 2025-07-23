@@ -2,50 +2,42 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Kalendarz Rezerwacji</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kalendarz</title>
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
       margin: 0;
-      padding: 20px;
+      padding: 0;
     }
-
-    .calendar-wrapper {
+    .calendar-container {
       max-width: 100%;
       overflow-x: auto;
     }
-
     table {
       border-collapse: collapse;
       min-width: 960px;
+      width: 100%;
     }
-
     th, td {
       border: 1px solid #ccc;
       text-align: center;
       padding: 6px;
     }
-
     th {
       background-color: #f0f0f0;
       position: sticky;
       top: 0;
       z-index: 1;
     }
-
     .occupied {
-      background-color: #a2d2ff;
+      background-color: #ff7f7f; /* czerwony */
       font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <h2>Kalendarz Rezerwacji</h2>
-  <div class="calendar-wrapper">
-    <div id="kalendarz"></div>
-  </div>
+  <div class="calendar-container" id="kalendarz"></div>
 
   <script>
     google.charts.load('current', {packages: ['corechart', 'table']});
@@ -69,27 +61,25 @@
       const datySet = new Set();
       const domkiSet = new Set();
 
-      // Odczyt danych z arkusza
+      // Pobieranie danych z arkusza
       for (let i = 0; i < rows; i++) {
         const dataOd = new Date(data.getValue(i, 0));
         const dataDo = new Date(data.getValue(i, 1));
         const domek = data.getValue(i, 2);
-        // Imię i nazwisko zastępujemy "zajęty"
-        const nazwisko = "zajęty";
-
         domkiSet.add(domek);
+
         for (let d = new Date(dataOd); d < dataDo; d.setDate(d.getDate() + 1)) {
           const dzien = formatDate(d);
           datySet.add(dzien);
-          rezerwacje.push({ domek, dzien, nazwisko });
+          rezerwacje.push({ domek, dzien });
         }
       }
 
       const daty = Array.from(datySet).sort();
       const domki = Array.from(domkiSet).sort();
 
-      // Tworzenie tabeli HTML
-      let html = '<table><thead><tr><th>Domek</th>';
+      // Generowanie HTML
+      let html = '<div class="calendar-container"><table><thead><tr><th>Domek</th>';
       daty.forEach(d => html += `<th>${d}</th>`);
       html += '</tr></thead><tbody>';
 
@@ -98,13 +88,13 @@
         daty.forEach(dzien => {
           const wpis = rezerwacje.find(r => r.domek === domek && r.dzien === dzien);
           html += wpis
-            ? `<td class="occupied">${wpis.nazwisko}</td>`
+            ? `<td class="occupied">zajęty</td>`
             : `<td></td>`;
         });
         html += '</tr>';
       });
 
-      html += '</tbody></table>';
+      html += '</tbody></table></div>';
       document.getElementById('kalendarz').innerHTML = html;
     }
   </script>
