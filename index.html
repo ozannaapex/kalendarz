@@ -74,27 +74,27 @@
 
     .occupied {
       background-color: #ff4d4d;
-      font-weight: bold;
-      cursor: default;
       color: white;
     }
 
     .partial-start {
-      background: linear-gradient(to left, #ff4d4d 50%, white 50%);
-      font-weight: bold;
+      background: linear-gradient(to right, #ff4d4d 50%, white 50%);
       color: white;
     }
 
     .partial-end {
-      background: linear-gradient(to right, #ff4d4d 50%, white 50%);
-      font-weight: bold;
+      background: linear-gradient(to left, #ff4d4d 50%, white 50%);
       color: white;
     }
 
-    .cell-text {
+    .cell-content {
       margin: 0;
       padding: 0;
-      line-height: 1.2;
+    }
+
+    .cell-content p {
+      margin: 2px 0;
+      font-weight: bold;
     }
 
     @media (max-width: 768px) {
@@ -102,6 +102,7 @@
         font-size: 12px;
         padding: 4px;
       }
+
       button {
         font-size: 14px;
         padding: 6px 10px;
@@ -161,20 +162,18 @@
         const domek = data.getValue(i, 2);
         const imieNazwisko = data.getValue(i, 3);
         const inicjaly = imieNazwisko ? imieNazwisko.substring(0, 3) : '';
-        const nazwisko = inicjaly;
 
-        for (let d = new Date(dataOd); d <= dataDo; d.setDate(d.getDate() + 1)) {
-          const dzien = formatDate(d);
-          let typ = 'pełny';
-          if (dzien === formatDate(dataOd)) typ = 'start';
-          else if (dzien === formatDate(dataDo)) typ = 'end';
+        const start = formatDate(dataOd);
+        const end = formatDate(dataDo);
 
-          allRezerwacje.push({
-            domek,
-            dzien,
-            nazwisko,
-            typ
-          });
+        allRezerwacje.push({ domek, dzien: start, typ: 'end', inicjaly });  // prawa połowa (przyjazd 14:00)
+        allRezerwacje.push({ domek, dzien: end, typ: 'start', inicjaly });  // lewa połowa (wyjazd 11:00)
+
+        for (let d = new Date(dataOd); d < dataDo; d.setDate(d.getDate() + 1)) {
+          const srodek = formatDate(d);
+          if (srodek !== start && srodek !== end) {
+            allRezerwacje.push({ domek, dzien: srodek, typ: 'full', inicjaly });
+          }
         }
       }
 
@@ -190,15 +189,14 @@
       const kalendarzDiv = document.getElementById('kalendarz');
       document.getElementById('current-month').textContent = `${monthNames[month]} ${year}`;
 
-      const filteredRezerwacje = allRezerwacje.filter(r => {
+      const filtered = allRezerwacje.filter(r => {
         const date = new Date(r.dzien);
         return date.getFullYear() === year && date.getMonth() === month;
       });
 
       const datySet = new Set();
       const domkiSet = new Set();
-
-      filteredRezerwacje.forEach(r => {
+      filtered.forEach(r => {
         datySet.add(r.dzien);
         domkiSet.add(r.domek);
       });
@@ -221,15 +219,29 @@
       domki.forEach(domek => {
         html += `<tr><td>${domek}</td>`;
         daty.forEach(dzien => {
-          const wpisy = filteredRezerwacje.filter(r => r.domek === domek && r.dzien === dzien);
-          if (wpisy.length > 1) {
-            html += `<td class="occupied"><p class="cell-text">Zmiana</p></td>`;
-          } else if (wpisy.length === 1) {
-            const wpis = wpisy[0];
-            let klasa = 'occupied';
-            if (wpis.typ === 'start') klasa = 'partial-end';
-            else if (wpis.typ === 'end') klasa = 'partial-start';
-            html += `<td class="${klasa}"><p class="cell-text">Zajęte</p><p class="cell-text">${wpis.nazwisko}</p></td>`;
+          const wpisy = filtered.filter(r => r.domek === domek && r.dzien === dzien);
+          if (wpisy.length > 0) {
+            let klasy = [];
+            let zawartosc = '';
+
+            wpisy.forEach(wpis => {
+              let klasa = '';
+              if (wpis.typ === 'start') klasa = 'partial-start';
+              else if (wpis.typ === 'end') klasa = 'partial-end';
+              else klasa = 'occupied';
+
+              klasy.push(klasa);
+              zawartosc += `<div class="cell-content"><p>Zajęte</p><p>${wpis.inicjaly}</p></div>`;
+            });
+
+            // Usuń duplikaty klas CSS, wybierz najważniejszą
+            const finalKlasa = klasy.includes('occupied')
+              ? 'occupied'
+              : klasy.includes('partial-start') && klasy.includes('partial-end')
+                ? 'occupied'
+                : klasy[0];
+
+            html += `<td class="${finalKlasa}">${zawartosc}</td>`;
           } else {
             html += `<td></td>`;
           }
