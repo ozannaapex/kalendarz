@@ -78,6 +78,18 @@
       color: white;
     }
 
+    .partial-start {
+      background: linear-gradient(to right, #ff4d4d 50%, white 50%);
+      font-weight: bold;
+      color: white;
+    }
+
+    .partial-end {
+      background: linear-gradient(to left, #ff4d4d 50%, white 50%);
+      font-weight: bold;
+      color: white;
+    }
+
     @media (max-width: 768px) {
       th, td {
         font-size: 12px;
@@ -144,11 +156,17 @@
         const inicjaly = imieNazwisko ? imieNazwisko.substring(0, 3) : '';
         const nazwisko = `Zajęty - ${inicjaly}`;
 
-        for (let d = new Date(dataOd); d < dataDo; d.setDate(d.getDate() + 1)) {
+        for (let d = new Date(dataOd); d <= dataDo; d.setDate(d.getDate() + 1)) {
+          const dzien = formatDate(d);
+          let typ = 'pełny';
+          if (dzien === formatDate(dataOd)) typ = 'start';
+          else if (dzien === formatDate(dataDo)) typ = 'end';
+
           allRezerwacje.push({
             domek,
-            dzien: formatDate(d),
-            nazwisko
+            dzien,
+            nazwisko,
+            typ
           });
         }
       }
@@ -197,9 +215,14 @@
         html += `<tr><td>${domek}</td>`;
         daty.forEach(dzien => {
           const wpis = filteredRezerwacje.find(r => r.domek === domek && r.dzien === dzien);
-          html += wpis
-            ? `<td class="occupied">${wpis.nazwisko}</td>`
-            : `<td></td>`;
+          if (wpis) {
+            let klasa = 'occupied';
+            if (wpis.typ === 'start') klasa = 'partial-start';
+            else if (wpis.typ === 'end') klasa = 'partial-end';
+            html += `<td class="${klasa}">${wpis.nazwisko}</td>`;
+          } else {
+            html += `<td></td>`;
+          }
         });
         html += '</tr>';
       });
