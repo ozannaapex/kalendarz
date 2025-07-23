@@ -1,156 +1,83 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <meta charset="UTF-8" />
-  <title>Kalendarz Miesięczny</title>
+  <meta charset="UTF-8">
+  <title>Kalendarz - Zajętość</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    .month { margin-bottom: 40px; }
-    .month-name { font-size: 1.5em; margin-bottom: 10px; }
-    .calendar-grid {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 5px;
-      text-align: center;
-    }
-    .day-name {
-      font-weight: bold;
-      background-color: #ddd;
-      padding: 5px;
-    }
-    .day {
-      border: 1px solid #ccc;
-      min-height: 60px;
-      padding: 5px;
-      position: relative;
-      background-color: #f9f9f9;
-    }
-    .event {
-      background-color: #f44336;
-      color: white;
-      font-size: 0.8em;
-      margin-top: 4px;
-      padding: 2px 4px;
-      border-radius: 4px;
-    }
-    .weekend { background-color: #ffeaea; }
+    body { font-family: Arial, sans-serif; margin: 2em; background: #f9f9f9; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 3em; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background: #eee; }
+    .weekend { background-color: #ffdede; }
+    .busy { background-color: #c3e6cb; font-weight: bold; }
+    h2 { margin-top: 3em; }
   </style>
 </head>
 <body>
-  <h1>Kalendarz Rezerwacji</h1>
+
+  <h1>Kalendarz dostępności</h1>
   <div id="calendar"></div>
 
   <script>
-    const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-FAKE-LINK/pub?output=csv'; // ← ZASTĄP SWOIM LINKIEM
+    const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSOMEID/pub?gid=0&single=true&output=csv'; // ← zamień na właściwy link CSV
 
-    const dayNames = ['Nd', 'Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb'];
-
-    function parseCSV(csv) {
-      const lines = csv.trim().split('\n');
-      const headers = lines[0].split(',');
-      return lines.slice(1).map(line => {
-        const values = line.split(',');
-        const row = {};
-        headers.forEach((h, i) => row[h.trim()] = values[i]?.trim());
-        return row;
+    async function fetchCSVData(url) {
+      const response = await fetch(url);
+      const text = await response.text();
+      const rows = text.trim().split('\n').map(row => row.split(','));
+      const headers = rows.shift();
+      return rows.map(row => {
+        const obj = {};
+        headers.forEach((h, i) => obj[h.trim()] = row[i]?.trim());
+        return obj;
       });
     }
 
-    function getInitials(name) {
-      return name.split(' ').map(w => w[0]?.toUpperCase()).join('');
-    }
-
-    function formatMonthName(date) {
-      return date.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
-    }
-
-    function generateCalendar(events) {
-      const calendar = document.getElementById('calendar');
-      const grouped = {};
-
-      // Grupowanie wydarzeń po dacie
-      events.forEach(e => {
-        const date = new Date(e.Data);
-        const key = date.toISOString().split('T')[0];
-        grouped[key] = { initials: getInitials(e['Imię i nazwisko']) };
+    function groupByMonth(data) {
+      const months = {};
+      data.forEach(entry => {
+        const date = new Date(entry.Data);
+        if (isNaN(date)) return;
+        const key = date.toLocaleString('pl-PL', { month: 'long', year: 'numeric' });
+        if (!months[key]) months[key] = [];
+        months[key].push({ date, initials: entry['Inicjały'] || '', name: entry['Imię i nazwisko'] });
       });
+      return months;
+    }
 
-      // Zakres dat: od pierwszego do ostatniego miesiąca
-      const dates = Object.keys(grouped).map(d => new Date(d));
-      const minDate = new Date(Math.min(...dates));
-      const maxDate = new Date(Math.max(...dates));
-      minDate.setDate(1);
-      maxDate.setMonth(maxDate.getMonth() + 1);
-      maxDate.setDate(0);
-
-      const current = new Date(minDate);
-      while (current <= maxDate) {
-        const monthStart = new Date(current.getFullYear(), current.getMonth(), 1);
-        const monthEnd = new Date(current.getFullYear(), current.getMonth() + 1, 0);
-
-        const monthDiv = document.createElement('div');
-        monthDiv.className = 'month';
-
-        const monthName = document.createElement('div');
-        monthName.className = 'month-name';
-        monthName.textContent = formatMonthName(current);
-        monthDiv.appendChild(monthName);
-
-        const grid = document.createElement('div');
-        grid.className = 'calendar-grid';
-
-        // Dni tygodnia
-        dayNames.forEach(d => {
-          const el = document.createElement('div');
-          el.className = 'day-name';
-          el.textContent = d;
-          grid.appendChild(el);
+    function renderCalendar(grouped) {
+      const container = document.getElementById('calendar');
+      for (const [month, entries] of Object.entries(grouped)) {
+        const table = document.createElement('table');
+        const caption = document.createElement('h2');
+        caption.textContent = month;
+        container.appendChild(caption);
+        const thead = document.createElement('thead');
+        thead.innerHTML = `<tr><th>Data</th><th>Dzień</th><th>Status</th><th>Inicjały</th></tr>`;
+        table.appendChild(thead);
+        const tbody = document.createElement('tbody');
+        entries.sort((a, b) => a.date - b.date).forEach(entry => {
+          const tr = document.createElement('tr');
+          const day = entry.date.getDay();
+          const isWeekend = (day === 0 || day === 6);
+          tr.innerHTML = `
+            <td>${entry.date.toLocaleDateString()}</td>
+            <td>${entry.date.toLocaleDateString('pl-PL', { weekday: 'long' })}</td>
+            <td class="busy">Zajęty</td>
+            <td>${entry.initials}</td>
+          `;
+          if (isWeekend) tr.classList.add('weekend');
+          tbody.appendChild(tr);
         });
-
-        const firstDay = monthStart.getDay(); // niedziela = 0
-        const totalDays = monthEnd.getDate();
-
-        // Puste pola przed pierwszym dniem miesiąca
-        for (let i = 0; i < firstDay; i++) {
-          const empty = document.createElement('div');
-          empty.className = 'day';
-          grid.appendChild(empty);
-        }
-
-        // Dni miesiąca
-        for (let day = 1; day <= totalDays; day++) {
-          const date = new Date(current.getFullYear(), current.getMonth(), day);
-          const key = date.toISOString().split('T')[0];
-          const dayDiv = document.createElement('div');
-          dayDiv.className = 'day';
-          if (date.getDay() === 0 || date.getDay() === 6) {
-            dayDiv.classList.add('weekend');
-          }
-          dayDiv.innerHTML = `<strong>${day}</strong>`;
-          if (grouped[key]) {
-            dayDiv.innerHTML += `<div class="event">Zajęty (${grouped[key].initials})</div>`;
-          }
-          grid.appendChild(dayDiv);
-        }
-
-        monthDiv.appendChild(grid);
-        calendar.appendChild(monthDiv);
-
-        // Przejście do kolejnego miesiąca
-        current.setMonth(current.getMonth() + 1);
-        current.setDate(1);
+        table.appendChild(tbody);
+        container.appendChild(table);
       }
     }
 
-    fetch(csvUrl)
-      .then(res => res.text())
-      .then(csv => {
-        const events = parseCSV(csv);
-        generateCalendar(events);
-      })
-      .catch(err => {
-        console.error('Błąd ładowania danych:', err);
-      });
+    fetchCSVData(sheetUrl)
+      .then(groupByMonth)
+      .then(renderCalendar)
+      .catch(err => console.error('Błąd ładowania danych:', err));
   </script>
 </body>
 </html>
