@@ -70,17 +70,21 @@
       cursor: default;
       color: white;
     }
-    .partial-start {
-      background: linear-gradient(to right, #ff4d4d 50%, white 50%);
-      font-weight: bold;
-      color: white;
-      position: relative;
-    }
-    .partial-end {
-      background: linear-gradient(to left, #ff4d4d 50%, white 50%);
-      font-weight: bold;
-      color: white;
-      position: relative;
+ .partial-start {
+  /* Czerwona prawa połowa, biała lewa */
+  background: linear-gradient(to left, #ff4d4d 50%, white 50%);
+  font-weight: bold;
+  color: white;
+  position: relative;
+}
+
+.partial-end {
+  /* Czerwona lewa połowa, biała prawa */
+  background: linear-gradient(to right, #ff4d4d 50%, white 50%);
+  font-weight: bold;
+  color: white;
+  position: relative;
+}
     }
     .partial-both {
       /* gdy start i end tego samego dnia - połowa z lewej czerwony, połowa z prawej czerwony */
