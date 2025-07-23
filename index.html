@@ -74,34 +74,29 @@
     .occupied {
       background-color: #ff4d4d;
       font-weight: bold;
-      cursor: default;
       color: white;
     }
 
     .partial-start {
-      background: linear-gradient(to right, #ff4d4d 50%, white 50%);
-      font-weight: bold;
-      color: white;
-    }
-
-    .partial-end {
       background: linear-gradient(to left, #ff4d4d 50%, white 50%);
       font-weight: bold;
       color: white;
     }
 
-    .occupied .nazwisko,
-    .partial-start .nazwisko,
-    .partial-end .nazwisko {
-      display: block;
-      font-size: 12px;
-      margin: 5px 0 0;
-    }
-
-    .change-day {
-      font-size: 12px;
+    .partial-end {
+      background: linear-gradient(to right, #ff4d4d 50%, white 50%);
       font-weight: bold;
       color: white;
+    }
+
+    .conflict {
+      background-color: red !important;
+      color: white;
+      font-weight: bold;
+    }
+
+    .nazwisko {
+      font-size: 12px;
       display: block;
       margin-top: 5px;
     }
@@ -169,22 +164,13 @@
         const dataDo = new Date(data.getValue(i, 1));
         const domek = data.getValue(i, 2);
         const imieNazwisko = data.getValue(i, 3);
-        const inicjaly = imieNazwisko ? imieNazwisko.substring(0, 3) : '';
-        const nazwisko = `Zajęty - ${inicjaly}`;
-
+        const inicjaly = imieNazwisko ? imieNazwisko.split(" ").map(w => w[0]).join("").toUpperCase() : '';
         for (let d = new Date(dataOd); d <= dataDo; d.setDate(d.getDate() + 1)) {
           const dzien = formatDate(d);
           let typ = 'pełny';
           if (dzien === formatDate(dataOd)) typ = 'start';
           else if (dzien === formatDate(dataDo)) typ = 'end';
-
-          allRezerwacje.push({
-            domek,
-            dzien,
-            nazwisko,
-            typ,
-            inicjaly
-          });
+          allRezerwacje.push({ domek, dzien, typ, inicjaly });
         }
       }
 
@@ -231,22 +217,25 @@
       domki.forEach(domek => {
         html += `<tr><td>${domek}</td>`;
         daty.forEach(dzien => {
-          const wpis = filteredRezerwacje.find(r => r.domek === domek && r.dzien === dzien);
-          if (wpis) {
+          const wpisy = filteredRezerwacje.filter(r => r.domek === domek && r.dzien === dzien);
+
+          if (wpisy.length === 1) {
+            const wpis = wpisy[0];
             let klasa = 'occupied';
-            let nazwisko = wpis.nazwisko;
-            if (wpis.typ === 'start') klasa = 'partial-end';  // Zmieniono z 'partial-start'
-            else if (wpis.typ === 'end') klasa = 'partial-start';  // Zmieniono z 'partial-end'
-
-            // Dodanie inicjałów oddzielonych ukośnikiem w dniu zmiany
-            if (wpis.typ === 'start' || wpis.typ === 'end') {
-              nazwisko = wpis.inicjaly.replace(/([a-zA-Z])([a-zA-Z])/, '$1/$2');
-            }
-
+            if (wpis.typ === 'start') klasa = 'partial-end';
+            else if (wpis.typ === 'end') klasa = 'partial-start';
             html += `<td class="${klasa}">
                       <span>Zajęte</span>
-                      <span class="nazwisko">${nazwisko}</span>
-                      <span class="change-day">${wpis.typ === 'start' || wpis.typ === 'end' ? wpis.inicjaly.replace(/([a-zA-Z])([a-zA-Z])/, '$1/$2') : ''}</span>
+                      <span class="nazwisko">${wpis.inicjaly}</span>
+                    </td>`;
+          } else if (wpisy.length === 2) {
+            const start = wpisy.find(w => w.typ === 'start');
+            const end = wpisy.find(w => w.typ === 'end');
+            const inicjalyStart = start ? start.inicjaly : '';
+            const inicjalyEnd = end ? end.inicjaly : '';
+            html += `<td class="conflict">
+                      <span>Zmiana</span>
+                      <span class="nazwisko">${inicjalyEnd} ➝ ${inicjalyStart}</span>
                     </td>`;
           } else {
             html += `<td></td>`;
