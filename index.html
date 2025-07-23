@@ -74,35 +74,8 @@
     .occupied {
       background-color: #ff4d4d;
       font-weight: bold;
+      cursor: default;
       color: white;
-    }
-
-    .partial-start {
-      background: linear-gradient(to left, #ff4d4d 50%, white 50%);
-      font-weight: bold;
-      color: white;
-    }
-
-    .partial-end {
-      background: linear-gradient(to right, #ff4d4d 50%, white 50%);
-      font-weight: bold;
-      color: white;
-    }
-
-    .conflict {
-      background-color: red !important;
-      color: white;
-      font-weight: bold;
-    }
-
-    .nazwisko {
-      font-size: 12px;
-      display: block;
-      margin-top: 5px;
-    }
-
-    .weekend {
-      background-color: #f9f9f9;
     }
 
     @media (max-width: 768px) {
@@ -168,13 +141,15 @@
         const dataDo = new Date(data.getValue(i, 1));
         const domek = data.getValue(i, 2);
         const imieNazwisko = data.getValue(i, 3);
-        const inicjaly = imieNazwisko ? imieNazwisko.split(" ").map(w => w[0]).join("").toUpperCase() : '';
-        for (let d = new Date(dataOd); d <= dataDo; d.setDate(d.getDate() + 1)) {
-          const dzien = formatDate(d);
-          let typ = 'pełny';
-          if (dzien === formatDate(dataOd)) typ = 'start';
-          else if (dzien === formatDate(dataDo)) typ = 'end';
-          allRezerwacje.push({ domek, dzien, typ, inicjaly });
+        const inicjaly = imieNazwisko ? imieNazwisko.substring(0, 3) : '';
+        const nazwisko = `Zajęty - ${inicjaly}`;
+
+        for (let d = new Date(dataOd); d < dataDo; d.setDate(d.getDate() + 1)) {
+          allRezerwacje.push({
+            domek,
+            dzien: formatDate(d),
+            nazwisko
+          });
         }
       }
 
@@ -213,41 +188,18 @@
 
       let html = '<table><thead><tr><th>Domek</th>';
       daty.forEach(d => {
-        const dayNum = d.split('-')[2];
-        const dow = new Date(d).getDay(); // 0 = niedziela, 6 = sobota
-        const weekendClass = (dow === 0 || dow === 6) ? ' class="weekend"' : '';
-        html += `<th${weekendClass}>${dayNum}</th>`;
+        const day = d.split('-')[2];
+        html += `<th>${day}</th>`;
       });
       html += '</tr></thead><tbody>';
 
       domki.forEach(domek => {
         html += `<tr><td>${domek}</td>`;
         daty.forEach(dzien => {
-          const wpisy = filteredRezerwacje.filter(r => r.domek === domek && r.dzien === dzien);
-          const dow = new Date(dzien).getDay();
-          const weekendClass = (dow === 0 || dow === 6) ? ' weekend' : '';
-
-          if (wpisy.length === 1) {
-            const wpis = wpisy[0];
-            let klasa = 'occupied';
-            if (wpis.typ === 'start') klasa = 'partial-end';   // prawa strona
-            else if (wpis.typ === 'end') klasa = 'partial-start'; // lewa strona
-            html += `<td class="${klasa}${weekendClass}">
-                      <span>Zajęte</span>
-                      <span class="nazwisko">${wpis.inicjaly}</span>
-                    </td>`;
-          } else if (wpisy.length === 2) {
-            const start = wpisy.find(w => w.typ === 'start');
-            const end = wpisy.find(w => w.typ === 'end');
-            const inicjalyStart = start ? start.inicjaly : '';
-            const inicjalyEnd = end ? end.inicjaly : '';
-            html += `<td class="conflict${weekendClass}">
-                      <span>Zmiana</span>
-                      <span class="nazwisko">${inicjalyEnd} ➝ ${inicjalyStart}</span>
-                    </td>`;
-          } else {
-            html += `<td class="${weekendClass}"></td>`;
-          }
+          const wpis = filteredRezerwacje.find(r => r.domek === domek && r.dzien === dzien);
+          html += wpis
+            ? `<td class="occupied">${wpis.nazwisko}</td>`
+            : `<td></td>`;
         });
         html += '</tr>';
       });
