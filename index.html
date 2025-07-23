@@ -1,171 +1,197 @@
 <!DOCTYPE html>
-<html lang="pl">
+<html>
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Dynamiczny kalendarz rezerwacji</title>
-<style>
-  body { font-family: Arial, sans-serif; max-width: 600px; margin: 1em auto; }
-  h1 { text-align: center; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { border: 1px solid #ccc; text-align: center; padding: 0.5em; }
-  th { background: #f0f0f0; }
-  .today { background: #d0f0d0; }
-  .busy { background: #f08080; color: white; font-weight: bold; cursor: default; }
-  .nav-btn { cursor: pointer; font-weight: bold; padding: 0.2em 0.5em; user-select: none; }
-  .nav-btn:hover { background: #ddd; }
-  caption { margin-bottom: 0.5em; font-weight: bold; font-size: 1.2em; }
-</style>
+  <meta charset="UTF-8">
+  <title>Kalendarz Rezerwacji - podział na miesiące</title>
+  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1000px;
+      margin: 20px auto;
+    }
+    h2 {
+      text-align: center;
+    }
+    #controls {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    button {
+      padding: 6px 12px;
+      margin: 0 10px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      text-align: center;
+      padding: 6px;
+      white-space: nowrap;
+    }
+    th {
+      background-color: #f0f0f0;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .occupied {
+      background-color: #a2d2ff;
+      font-weight: bold;
+      cursor: default;
+    }
+  </style>
 </head>
 <body>
-<h1>Kalendarz rezerwacji</h1>
-<div style="text-align:center; margin-bottom: 10px;">
-  <span class="nav-btn" id="prev-month">&lt; Poprzedni</span>
-  &nbsp;&nbsp;
-  <span class="nav-btn" id="next-month">Następny &gt;</span>
-</div>
-<table id="calendar">
-  <caption id="caption"></caption>
-  <thead>
-    <tr><th>Nd</th><th>Pon</th><th>Wt</th><th>Śr</th><th>Czw</th><th>Pt</th><th>Sb</th></tr>
-  </thead>
-  <tbody></tbody>
-</table>
+  <h2>Kalendarz Rezerwacji</h2>
+  <div id="controls">
+    <button id="prev-month">&lt; Poprzedni miesiąc</button>
+    <span id="current-month" style="font-weight:bold; font-size:18px;"></span>
+    <button id="next-month">Następny miesiąc &gt;</button>
+  </div>
+  <div id="kalendarz"></div>
 
-<script>
-  const spreadsheetId = "1ktIEbiKcIvKHN3N8hkBz5_1UNDJa5a78xYNuf4hoWN4";
-  const sheetName = "Rezerwacje";
+  <script>
+    google.charts.load('current', {packages: ['corechart', 'table']});
+    google.charts.setOnLoadCallback(drawCalendar);
 
-  // Dane rezerwacji w formacie Set dat "YYYY-MM-DD"
-  let busyDates = new Set();
+    // Aktualny wyświetlany rok i miesiąc
+    let currentYear, currentMonth;
 
-  // Aktualny miesiąc i rok wyświetlany
-  let currentYear, currentMonth;
+    // Przechowuje wszystkie rezerwacje
+    let allRezerwacje = [];
 
-  // Formatowanie daty YYYY-MM-DD
-  function formatDate(d) {
-    const mm = (d.getMonth() + 1).toString().padStart(2, '0');
-    const dd = d.getDate().toString().padStart(2, '0');
-    return `${d.getFullYear()}-${mm}-${dd}`;
-  }
-
-  // Pobierz dane z arkusza Google Sheets w formacie JSON (publiczny arkusz)
-  async function fetchReservations() {
-    const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
-    const res = await fetch(url);
-    const text = await res.text();
-    // Google Sheets JSON jest opakowany w function call - trzeba wyciągnąć JSON
-    const jsonStr = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
-    const data = JSON.parse(jsonStr);
-
-    busyDates.clear();
-
-    // Przetwarzamy wiersze
-    const rows = data.table.rows;
-    for (const row of rows) {
-      // Zakładam że Data jest w pierwszej kolumnie (c[0]), Imię i nazwisko w drugiej (c[1])
-      const cellDate = row.c[0]?.v;
-      const cellName = row.c[1]?.v;
-
-      if (cellDate) {
-        // Konwertuj datę na string YYYY-MM-DD
-        // Google Sheets może dawać datę jako "2025-07-23" lub jako liczba (daty Excela)
-        // Załóżmy, że jest tekst - jeśli nie, można dodać konwersję
-        const dateStr = (typeof cellDate === 'string') ? cellDate.split(' ')[0] : null;
-        if (dateStr) {
-          busyDates.add(dateStr);
-        }
-      }
+    // Funkcja formatuje datę do YYYY-MM-DD
+    function formatDate(d) {
+      const date = new Date(d);
+      return date.toISOString().split('T')[0];
     }
-  }
 
-  // Renderowanie kalendarza na dany miesiąc i rok
-  function renderCalendar(year, month) {
-    currentYear = year;
-    currentMonth = month;
-
-    const caption = document.getElementById("caption");
-    const tbody = document.querySelector("#calendar tbody");
-    tbody.innerHTML = "";
-
-    // Nazwy miesięcy
+    // Nazwy miesięcy po polsku
     const monthNames = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
-    caption.textContent = `${monthNames[month]} ${year}`;
 
-    // Pierwszy dzień miesiąca
-    const firstDay = new Date(year, month, 1);
-    const firstWeekDay = firstDay.getDay(); // niedziela=0 ... sobota=6
+    // Pobierz dane z arkusza i rozpocznij rysowanie kalendarza
+    function drawCalendar() {
+      const query = new google.visualization.Query('https://docs.google.com/spreadsheets/d/1ktIEbiKcIvKHN3N8hkBz5_1UNDJa5a78xYNuf4hoWN4/gviz/tq?sheet=Rezerwacje');
+      query.send(handleQueryResponse);
+    }
 
-    // Ile dni w miesiącu
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-    // Budujemy tablicę dni: niedziela jako pierwszy dzień tygodnia
-    // Wstawiamy puste komórki przed 1 dniem
-    let dayCounter = 1;
-    let done = false;
-
-    for (let week = 0; week < 6; week++) {
-      if (done) break;
-      const tr = document.createElement("tr");
-      for (let wd = 0; wd < 7; wd++) {
-        const td = document.createElement("td");
-        // Wypełniamy komórki tylko jeśli odpowiadają dniom miesiąca
-        if ((week === 0 && wd < firstWeekDay) || dayCounter > daysInMonth) {
-          td.textContent = "";
-        } else {
-          const dateStr = formatDate(new Date(year, month, dayCounter));
-          td.textContent = dayCounter;
-
-          if (busyDates.has(dateStr)) {
-            td.classList.add("busy");
-            td.title = "Zajęty";
-            // zamiast imienia i nazwiska - tekst "zajęty" w title, więc nie pokazujemy nazwiska
-          }
-
-          // Dziś zaznaczenie
-          const today = new Date();
-          if (year === today.getFullYear() && month === today.getMonth() && dayCounter === today.getDate()) {
-            td.classList.add("today");
-          }
-
-          dayCounter++;
-        }
-        tr.appendChild(td);
+    // Obsługa odpowiedzi z arkusza
+    function handleQueryResponse(response) {
+      if (response.isError()) {
+        document.getElementById('kalendarz').innerHTML = 'Błąd w pobieraniu danych: ' + response.getMessage();
+        return;
       }
-      tbody.appendChild(tr);
-      if (dayCounter > daysInMonth) done = true;
+
+      const data = response.getDataTable();
+      const rows = data.getNumberOfRows();
+      allRezerwacje = [];
+
+      for (let i = 0; i < rows; i++) {
+        const dataOd = new Date(data.getValue(i, 0));
+        const dataDo = new Date(data.getValue(i, 1));
+        const domek = data.getValue(i, 2);
+        // Imię i nazwisko zastępujemy "zajęty"
+        const nazwisko = "zajęty";
+
+        // Wypisujemy każdy dzień rezerwacji (od - do, bez ostatniego dnia)
+        for (let d = new Date(dataOd); d < dataDo; d.setDate(d.getDate() + 1)) {
+          allRezerwacje.push({
+            domek,
+            dzien: formatDate(d),
+            nazwisko
+          });
+        }
+      }
+
+      // Ustaw miesiąc i rok na aktualny
+      const now = new Date();
+      currentYear = now.getFullYear();
+      currentMonth = now.getMonth();
+
+      renderCalendar(currentYear, currentMonth);
+      setupNavigation();
     }
-  }
 
-  // Inicjalizacja i pobranie danych
-  async function init() {
-    await fetchReservations();
-    const now = new Date();
-    renderCalendar(now.getFullYear(), now.getMonth());
-  }
+    // Renderuj kalendarz tylko dla wskazanego miesiąca i roku
+    function renderCalendar(year, month) {
+      const kalendarzDiv = document.getElementById('kalendarz');
+      document.getElementById('current-month').textContent = `${monthNames[month]} ${year}`;
 
-  // Nawigacja miesiące
-  document.getElementById("prev-month").onclick = () => {
-    let m = currentMonth - 1;
-    let y = currentYear;
-    if (m < 0) {
-      m = 11;
-      y--;
+      // Filtrujemy rezerwacje na dany miesiąc
+      const filteredRezerwacje = allRezerwacje.filter(r => {
+        const date = new Date(r.dzien);
+        return date.getFullYear() === year && date.getMonth() === month;
+      });
+
+      // Wyciągamy unikalne daty i domki z filtrowanych rezerwacji
+      const datySet = new Set();
+      const domkiSet = new Set();
+
+      filteredRezerwacje.forEach(r => {
+        datySet.add(r.dzien);
+        domkiSet.add(r.domek);
+      });
+
+      // Jeśli nie ma rezerwacji w tym miesiącu - pokaż pusty komunikat
+      if(datySet.size === 0) {
+        kalendarzDiv.innerHTML = "<p>Brak rezerwacji w tym miesiącu.</p>";
+        return;
+      }
+
+      // Sortujemy daty i domki
+      const daty = Array.from(datySet).sort();
+      const domki = Array.from(domkiSet).sort();
+
+      // Budujemy nagłówki tabeli z datami (format DD-MM)
+      let html = '<table><thead><tr><th>Domek</th>';
+      daty.forEach(d => {
+        const day = d.split('-')[2];
+        html += `<th>${day}</th>`;
+      });
+      html += '</tr></thead><tbody>';
+
+      // Budujemy wiersze z domkami i datami
+      domki.forEach(domek => {
+        html += `<tr><td>${domek}</td>`;
+        daty.forEach(dzien => {
+          const wpis = filteredRezerwacje.find(r => r.domek === domek && r.dzien === dzien);
+          html += wpis
+            ? `<td class="occupied">${wpis.nazwisko}</td>`
+            : `<td></td>`;
+        });
+        html += '</tr>';
+      });
+
+      html += '</tbody></table>';
+      kalendarzDiv.innerHTML = html;
     }
-    renderCalendar(y, m);
-  };
-  document.getElementById("next-month").onclick = () => {
-    let m = currentMonth + 1;
-    let y = currentYear;
-    if (m > 11) {
-      m = 0;
-      y++;
+
+    // Obsługa przycisków zmiany miesiąca
+    function setupNavigation() {
+      document.getElementById('prev-month').onclick = () => {
+        currentMonth--;
+        if (currentMonth < 0) {
+          currentMonth = 11;
+          currentYear--;
+        }
+        renderCalendar(currentYear, currentMonth);
+      };
+
+      document.getElementById('next-month').onclick = () => {
+        currentMonth++;
+        if (currentMonth > 11) {
+          currentMonth = 0;
+          currentYear++;
+        }
+        renderCalendar(currentYear, currentMonth);
+      };
     }
-    renderCalendar(y, m);
-  };
-
-  init();
-</script>
-
+  </script>
 </body>
 </html>
