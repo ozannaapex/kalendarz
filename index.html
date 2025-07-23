@@ -78,16 +78,22 @@
       color: white;
     }
 
-    .partial-right {
-      background: linear-gradient(to right, white 50%, #ff4d4d 50%);
-      font-weight: bold;
-      color: #ff4d4d;
-    }
-
-    .partial-left {
+    .partial-start {
       background: linear-gradient(to right, #ff4d4d 50%, white 50%);
       font-weight: bold;
-      color: #ff4d4d;
+      color: white;
+    }
+
+    .partial-end {
+      background: linear-gradient(to left, #ff4d4d 50%, white 50%);
+      font-weight: bold;
+      color: white;
+    }
+
+    .cell-content {
+      margin: 0;
+      padding: 0;
+      line-height: 1.2;
     }
 
     @media (max-width: 768px) {
@@ -154,16 +160,19 @@
         const domek = data.getValue(i, 2);
         const imieNazwisko = data.getValue(i, 3);
         const inicjaly = imieNazwisko ? imieNazwisko.substring(0, 3) : '';
-        const nazwisko = `Zajęty - ${inicjaly}`;
+        const nazwisko = `<p class="cell-content">Zajęty</p><p class="cell-content">${inicjaly}</p>`;
 
-        const startDate = new Date(dataOd);
-        const endDate = new Date(dataDo);
+        const dzienOd = formatDate(dataOd);
+        const dzienDo = formatDate(dataDo);
 
-        for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        for (let d = new Date(dataOd); d <= dataDo; d.setDate(d.getDate() + 1)) {
           const dzien = formatDate(d);
-          let typ = 'middle';
-          if (dzien === formatDate(startDate)) typ = 'start';
-          else if (dzien === formatDate(endDate)) typ = 'end';
+          let typ = 'full';
+          if (dzien === dzienOd) typ = 'end'; // przyjazd – prawa połowa
+          else if (dzien === dzienDo) typ = 'start'; // wyjazd – lewa połowa
+
+          // Jeśli tylko jeden dzień – oznacz jako pełny
+          if (dzienOd === dzienDo) typ = 'full';
 
           allRezerwacje.push({
             domek,
@@ -220,8 +229,8 @@
           const wpis = filteredRezerwacje.find(r => r.domek === domek && r.dzien === dzien);
           if (wpis) {
             let klasa = 'occupied';
-            if (wpis.typ === 'start') klasa = 'partial-right';
-            else if (wpis.typ === 'end') klasa = 'partial-left';
+            if (wpis.typ === 'start') klasa = 'partial-start';
+            else if (wpis.typ === 'end') klasa = 'partial-end';
             html += `<td class="${klasa}">${wpis.nazwisko}</td>`;
           } else {
             html += `<td></td>`;
