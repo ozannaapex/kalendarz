@@ -8,17 +8,20 @@
     body {
       font-family: Arial, sans-serif;
       padding: 20px;
+      background: #f9f9f9;
     }
     .month {
       margin-bottom: 40px;
     }
     h2 {
       margin-bottom: 10px;
+      color: #333;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 20px;
+      background-color: #fff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     th, td {
       border: 1px solid #ccc;
@@ -58,7 +61,10 @@
   }
 
   function getInitials(name) {
-    return name.split(" ").map(n => n[0].toUpperCase()).join("");
+    return name
+      .split(" ")
+      .map(part => part.charAt(0).toUpperCase())
+      .join("");
   }
 
   function generateCalendar(data) {
@@ -66,6 +72,7 @@
 
     data.forEach(entry => {
       const date = new Date(entry["Data"]);
+      if (isNaN(date)) return;
       const key = date.toISOString().split("T")[0];
       if (!bookings[key]) bookings[key] = [];
       bookings[key].push(entry["Imię i nazwisko"]);
@@ -89,7 +96,7 @@
       const thead = document.createElement("thead");
       const headerRow = document.createElement("tr");
 
-      ["Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "So"].forEach(day => {
+      ["Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd"].forEach(day => {
         const th = document.createElement("th");
         th.textContent = day;
         headerRow.appendChild(th);
@@ -101,10 +108,9 @@
       const tbody = document.createElement("tbody");
       let row = document.createElement("tr");
 
-      let dayOfWeek = firstDay.getDay();
-      if (dayOfWeek === 0) dayOfWeek = 7; // make Sunday last
+      let firstWeekday = (firstDay.getDay() + 6) % 7;
 
-      for (let i = 1; i < dayOfWeek; i++) {
+      for (let i = 0; i < firstWeekday; i++) {
         row.appendChild(document.createElement("td"));
       }
 
@@ -113,8 +119,10 @@
         const isoDate = date.toISOString().split("T")[0];
         const cell = document.createElement("td");
 
-        let isWeekend = date.getDay() === 0 || date.getDay() === 6;
-        if (isWeekend) cell.classList.add("weekend");
+        let dayOfWeek = date.getDay();
+        const correctedDay = (dayOfWeek + 6) % 7; // Pn=0, Nd=6
+
+        if (correctedDay >= 5) cell.classList.add("weekend");
 
         cell.innerHTML = `<strong>${day}</strong>`;
 
@@ -128,18 +136,19 @@
 
         row.appendChild(cell);
 
-        if (date.getDay() === 0) {
+        if (correctedDay === 6) {
           tbody.appendChild(row);
           row = document.createElement("tr");
         }
       }
 
-      // Fill empty cells at end
-      while (row.children.length < 7) {
-        row.appendChild(document.createElement("td"));
+      if (row.children.length > 0) {
+        while (row.children.length < 7) {
+          row.appendChild(document.createElement("td"));
+        }
+        tbody.appendChild(row);
       }
 
-      tbody.appendChild(row);
       table.appendChild(tbody);
       monthDiv.appendChild(table);
       calendarContainer.appendChild(monthDiv);
