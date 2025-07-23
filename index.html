@@ -2,96 +2,74 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Kalendarz Rezerwacji - podział na miesiące</title>
+  <title>Kalendarz Rezerwacji</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      max-width: 1000px;
-      margin: 20px auto;
+      margin: 0;
+      padding: 20px;
     }
-    h2 {
-      text-align: center;
-    }
-    #controls {
-      text-align: center;
-      margin-bottom: 10px;
-    }
-    button {
-      padding: 6px 12px;
-      margin: 0 10px;
-      cursor: pointer;
-      font-size: 16px;
-    }
-    table {
-      border-collapse: collapse;
-      width: 100%;
+
+    .calendar-wrapper {
+      max-width: 100%;
       overflow-x: auto;
     }
+
+    table {
+      border-collapse: collapse;
+      min-width: 960px;
+    }
+
     th, td {
       border: 1px solid #ccc;
       text-align: center;
       padding: 6px;
-      white-space: nowrap;
     }
+
     th {
       background-color: #f0f0f0;
       position: sticky;
       top: 0;
       z-index: 1;
     }
+
     .occupied {
       background-color: #a2d2ff;
       font-weight: bold;
-      cursor: default;
     }
   </style>
 </head>
 <body>
   <h2>Kalendarz Rezerwacji</h2>
-  <div id="controls">
-    <button id="prev-month">&lt; Poprzedni miesiąc</button>
-    <span id="current-month" style="font-weight:bold; font-size:18px;"></span>
-    <button id="next-month">Następny miesiąc &gt;</button>
+  <div class="calendar-wrapper">
+    <div id="kalendarz"></div>
   </div>
-  <div id="kalendarz"></div>
 
   <script>
     google.charts.load('current', {packages: ['corechart', 'table']});
     google.charts.setOnLoadCallback(drawCalendar);
 
-    // Aktualny wyświetlany rok i miesiąc
-    let currentYear, currentMonth;
-
-    // Przechowuje wszystkie rezerwacje
-    let allRezerwacje = [];
-
-    // Funkcja formatuje datę do YYYY-MM-DD
-    function formatDate(d) {
-      const date = new Date(d);
-      return date.toISOString().split('T')[0];
-    }
-
-    // Nazwy miesięcy po polsku
-    const monthNames = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
-
-    // Pobierz dane z arkusza i rozpocznij rysowanie kalendarza
     function drawCalendar() {
       const query = new google.visualization.Query('https://docs.google.com/spreadsheets/d/1ktIEbiKcIvKHN3N8hkBz5_1UNDJa5a78xYNuf4hoWN4/gviz/tq?sheet=Rezerwacje');
       query.send(handleQueryResponse);
     }
 
-    // Obsługa odpowiedzi z arkusza
-    function handleQueryResponse(response) {
-      if (response.isError()) {
-        document.getElementById('kalendarz').innerHTML = 'Błąd w pobieraniu danych: ' + response.getMessage();
-        return;
-      }
+    function formatDate(d) {
+      const date = new Date(d);
+      return date.toISOString().split('T')[0];
+    }
 
+    function handleQueryResponse(response) {
       const data = response.getDataTable();
       const rows = data.getNumberOfRows();
-      allRezerwacje = [];
+      const rezerwacje = [];
 
+      const datySet = new Set();
+      const domkiSet = new Set();
+
+      // Odczyt danych z arkusza
       for (let i = 0; i < rows; i++) {
         const dataOd = new Date(data.getValue(i, 0));
         const dataDo = new Date(data.getValue(i, 1));
@@ -99,68 +77,26 @@
         // Imię i nazwisko zastępujemy "zajęty"
         const nazwisko = "zajęty";
 
-        // Wypisujemy każdy dzień rezerwacji (od - do, bez ostatniego dnia)
+        domkiSet.add(domek);
         for (let d = new Date(dataOd); d < dataDo; d.setDate(d.getDate() + 1)) {
-          allRezerwacje.push({
-            domek,
-            dzien: formatDate(d),
-            nazwisko
-          });
+          const dzien = formatDate(d);
+          datySet.add(dzien);
+          rezerwacje.push({ domek, dzien, nazwisko });
         }
       }
 
-      // Ustaw miesiąc i rok na aktualny
-      const now = new Date();
-      currentYear = now.getFullYear();
-      currentMonth = now.getMonth();
-
-      renderCalendar(currentYear, currentMonth);
-      setupNavigation();
-    }
-
-    // Renderuj kalendarz tylko dla wskazanego miesiąca i roku
-    function renderCalendar(year, month) {
-      const kalendarzDiv = document.getElementById('kalendarz');
-      document.getElementById('current-month').textContent = `${monthNames[month]} ${year}`;
-
-      // Filtrujemy rezerwacje na dany miesiąc
-      const filteredRezerwacje = allRezerwacje.filter(r => {
-        const date = new Date(r.dzien);
-        return date.getFullYear() === year && date.getMonth() === month;
-      });
-
-      // Wyciągamy unikalne daty i domki z filtrowanych rezerwacji
-      const datySet = new Set();
-      const domkiSet = new Set();
-
-      filteredRezerwacje.forEach(r => {
-        datySet.add(r.dzien);
-        domkiSet.add(r.domek);
-      });
-
-      // Jeśli nie ma rezerwacji w tym miesiącu - pokaż pusty komunikat
-      if(datySet.size === 0) {
-        kalendarzDiv.innerHTML = "<p>Brak rezerwacji w tym miesiącu.</p>";
-        return;
-      }
-
-      // Sortujemy daty i domki
       const daty = Array.from(datySet).sort();
       const domki = Array.from(domkiSet).sort();
 
-      // Budujemy nagłówki tabeli z datami (format DD-MM)
+      // Tworzenie tabeli HTML
       let html = '<table><thead><tr><th>Domek</th>';
-      daty.forEach(d => {
-        const day = d.split('-')[2];
-        html += `<th>${day}</th>`;
-      });
+      daty.forEach(d => html += `<th>${d}</th>`);
       html += '</tr></thead><tbody>';
 
-      // Budujemy wiersze z domkami i datami
       domki.forEach(domek => {
         html += `<tr><td>${domek}</td>`;
         daty.forEach(dzien => {
-          const wpis = filteredRezerwacje.find(r => r.domek === domek && r.dzien === dzien);
+          const wpis = rezerwacje.find(r => r.domek === domek && r.dzien === dzien);
           html += wpis
             ? `<td class="occupied">${wpis.nazwisko}</td>`
             : `<td></td>`;
@@ -169,28 +105,7 @@
       });
 
       html += '</tbody></table>';
-      kalendarzDiv.innerHTML = html;
-    }
-
-    // Obsługa przycisków zmiany miesiąca
-    function setupNavigation() {
-      document.getElementById('prev-month').onclick = () => {
-        currentMonth--;
-        if (currentMonth < 0) {
-          currentMonth = 11;
-          currentYear--;
-        }
-        renderCalendar(currentYear, currentMonth);
-      };
-
-      document.getElementById('next-month').onclick = () => {
-        currentMonth++;
-        if (currentMonth > 11) {
-          currentMonth = 0;
-          currentYear++;
-        }
-        renderCalendar(currentYear, currentMonth);
-      };
+      document.getElementById('kalendarz').innerHTML = html;
     }
   </script>
 </body>
