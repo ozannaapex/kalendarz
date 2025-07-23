@@ -2,150 +2,273 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Kalendarz Rezerwacji</title>
+  <title>Kalendarz</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
   <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0 auto;
+      padding: 20px;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    #controls {
+      text-align: center;
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    button {
+      padding: 8px 14px;
+      font-size: 16px;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    #current-month {
+      font-size: 18px;
+      font-weight: bold;
+      margin: 0 10px;
+      line-height: 5px;
+    }
+
+    #kalendarz-wrapper {
+      overflow-x: auto;
+      max-width: 100%;
+    }
+
     table {
       border-collapse: collapse;
-      width: 100%;
-      table-layout: fixed;
+      margin: 0 auto;
+      width: max-content;
+      min-width: 100%;
     }
 
     th, td {
       border: 1px solid #ccc;
       text-align: center;
-      font-size: 12px;
-      padding: 4px;
-      word-wrap: break-word;
+      padding: 6px;
+      white-space: nowrap;
+      font-size: 14px;
     }
 
     th {
-      background-color: #f2f2f2;
+      background-color: #f0f0f0;
       position: sticky;
       top: 0;
-      z-index: 2;
+      z-index: 1;
     }
 
     .occupied {
       background-color: #ff4d4d;
+      font-weight: bold;
+      cursor: default;
+      color: white;
+    }
+
+    .arrival {
+      background: linear-gradient(to right, #ff4d4d 50%, transparent 50%);
       color: white;
       font-weight: bold;
     }
 
-    .start-day {
-      background: linear-gradient(to right, #ff4d4d 50%, white 50%);
+    .departure {
+      background: linear-gradient(to left, #ff4d4d 50%, transparent 50%);
       color: white;
       font-weight: bold;
     }
 
-    .end-day {
-      background: linear-gradient(to right, white 50%, #ff4d4d 50%);
+    .multi {
+      background: linear-gradient(to right, #ff4d4d 50%, #ffa3a3 50%);
       color: white;
       font-weight: bold;
     }
 
-    .occupied p, .start-day p, .end-day p {
+    .occupied p {
       margin: 0;
-      font-size: 10px;
+      line-height: 1.2;
+    }
+
+    @media (max-width: 768px) {
+      th, td {
+        font-size: 12px;
+        padding: 4px;
+      }
+      button {
+        font-size: 14px;
+        padding: 6px 10px;
+      }
     }
   </style>
 </head>
 <body>
-  <div id="calendar"></div>
+  <div id="controls">
+    <button id="prev-month">&lt; Poprzedni</button>
+    <span id="current-month"></span>
+    <button id="next-month">Następny &gt;</button>
+  </div>
 
-  <script type="text/javascript">
-    google.charts.load('current', { 'packages': ['corechart', 'table'] });
+  <div id="kalendarz-wrapper">
+    <div id="kalendarz"></div>
+  </div>
+
+  <script>
+    google.charts.load('current', { packages: ['corechart', 'table'] });
     google.charts.setOnLoadCallback(drawCalendar);
 
+    let currentYear, currentMonth;
+    let allRezerwacje = [];
+
+    function formatDate(d) {
+      const date = new Date(d);
+      date.setHours(0, 0, 0, 0);
+      return date.toISOString().split('T')[0];
+    }
+
+    const monthNames = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
+
     function drawCalendar() {
-      const spreadsheetId = '1ktIEbiKcIvKHN3N8hkBz5_1UNDJa5a78xYNuf4hoWN4';
-      const range = 'Rezerwacje!A:D';
-      const query = new google.visualization.Query(
-        `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?sheet=Rezerwacje&range=${range}`
-      );
+      const query = new google.visualization.Query('https://docs.google.com/spreadsheets/d/1ktIEbiKcIvKHN3N8hkBz5_1UNDJa5a78xYNuf4hoWN4/gviz/tq?sheet=Rezerwacje');
       query.send(handleQueryResponse);
     }
 
-    function formatDate(date) {
-      const d = new Date(date);
-      const month = '' + (d.getMonth() + 1);
-      const day = '' + d.getDate();
-      return `${d.getFullYear()}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    function getInitials(fullName) {
+      if (!fullName) return '';
+      const parts = fullName.trim().split(' ');
+      const first = parts[0]?.charAt(0).toUpperCase() || '';
+      const second = parts[1]?.charAt(0).toUpperCase() || '';
+      return first + second;
     }
 
     function handleQueryResponse(response) {
       if (response.isError()) {
-        document.getElementById('calendar').innerText =
-          'Błąd wczytywania danych: ' + response.getMessage();
+        document.getElementById('kalendarz').innerHTML = 'Błąd w pobieraniu danych: ' + response.getMessage();
         return;
       }
 
       const data = response.getDataTable();
       const rows = data.getNumberOfRows();
-      const allRezerwacje = [];
-      const allDates = new Set();
-      const domki = new Set();
+      allRezerwacje = [];
 
       for (let i = 0; i < rows; i++) {
         const dataOd = new Date(data.getValue(i, 0));
         const dataDo = new Date(data.getValue(i, 1));
         const domek = data.getValue(i, 2);
-        const imieNazwisko = data.getValue(i, 3) || "";
+        const imieNazwisko = data.getValue(i, 3);
+        const inicjaly = getInitials(imieNazwisko);
 
-        const [imie, nazwisko] = imieNazwisko.trim().split(" ");
-        const inicjaly = (imie?.[0] || '') + (nazwisko?.[0] || '');
-
-        const start = new Date(dataOd);
-        const end = new Date(dataDo);
-        const dzienPrzedWyjazdem = new Date(end);
-        dzienPrzedWyjazdem.setDate(end.getDate() - 1);
-
-        for (let d = new Date(start); d <= dzienPrzedWyjazdem; d.setDate(d.getDate() + 1)) {
+        for (let d = new Date(dataOd); d < dataDo; d.setDate(d.getDate() + 1)) {
           const dzien = formatDate(d);
-          const typ = (dzien === formatDate(start)) ? "start" :
-                      (dzien === formatDate(dzienPrzedWyjazdem)) ? "end" :
-                      "full";
-
-          allRezerwacje.push({ domek, dzien, inicjaly, typ });
-          allDates.add(dzien);
-          domki.add(domek);
+          allRezerwacje.push({
+            domek,
+            dzien,
+            inicjaly,
+            isStart: formatDate(dataOd) === dzien,
+            isEnd: formatDate(dataDo) === formatDate(new Date(d.setDate(d.getDate() + 1)))
+          });
+          d.setDate(d.getDate() - 1); // przywróć datę po sprawdzeniu
         }
       }
 
-      const sortedDates = Array.from(allDates).sort();
-      const sortedDomki = Array.from(domki).sort();
+      const now = new Date();
+      currentYear = now.getFullYear();
+      currentMonth = now.getMonth();
 
-      const html = renderCalendar(sortedDomki, sortedDates, allRezerwacje);
-      document.getElementById('calendar').innerHTML = html;
+      renderCalendar(currentYear, currentMonth);
+      setupNavigation();
     }
 
-    function renderCalendar(domki, dates, rezerwacje) {
+    function renderCalendar(year, month) {
+      const kalendarzDiv = document.getElementById('kalendarz');
+      document.getElementById('current-month').textContent = `${monthNames[month]} ${year}`;
+
+      const filteredRezerwacje = allRezerwacje.filter(r => {
+        const date = new Date(r.dzien);
+        return date.getFullYear() === year && date.getMonth() === month;
+      });
+
+      const datySet = new Set();
+      const domkiSet = new Set();
+
+      filteredRezerwacje.forEach(r => {
+        datySet.add(r.dzien);
+        domkiSet.add(r.domek);
+      });
+
+      if (datySet.size === 0) {
+        kalendarzDiv.innerHTML = "<p style='text-align:center;'>Brak rezerwacji w tym miesiącu.</p>";
+        return;
+      }
+
+      const daty = Array.from(datySet).sort();
+      const domki = Array.from(domkiSet).sort();
+
       let html = '<table><thead><tr><th>Domek</th>';
-      dates.forEach(date => {
-        html += `<th>${date.slice(5)}</th>`;
+      daty.forEach(d => {
+        const day = d.split('-')[2];
+        html += `<th>${day}</th>`;
       });
       html += '</tr></thead><tbody>';
 
       domki.forEach(domek => {
         html += `<tr><td>${domek}</td>`;
-        dates.forEach(date => {
-          const wpis = rezerwacje.find(r => r.domek === domek && r.dzien === date);
-          if (wpis) {
-            let className = "occupied";
-            if (wpis.typ === "start") className = "start-day";
-            else if (wpis.typ === "end") className = "end-day";
-
-            html += `<td class="${className}"><p>Zajęte</p><p>${wpis.inicjaly}</p></td>`;
-          } else {
+        daty.forEach(dzien => {
+          const wpisy = filteredRezerwacje.filter(r => r.domek === domek && r.dzien === dzien);
+          if (wpisy.length === 0) {
             html += `<td></td>`;
+          } else {
+            const klasy = [];
+            const inicjalyList = [];
+
+            wpisy.forEach(wpis => {
+              if (wpis.isStart) klasy.push("arrival");
+              else if (wpis.isEnd) klasy.push("departure");
+              else klasy.push("occupied");
+              inicjalyList.push(wpis.inicjaly);
+            });
+
+            const cssClass = klasy.includes("arrival") && klasy.includes("departure") ? "multi" : klasy[0];
+            const initialsText = [...new Set(inicjalyList)].join(", ");
+            html += `<td class="${cssClass}"><p>Zajęty</p><p>${initialsText}</p></td>`;
           }
         });
         html += '</tr>';
       });
 
       html += '</tbody></table>';
-      return html;
+      kalendarzDiv.innerHTML = html;
+    }
+
+    function setupNavigation() {
+      document.getElementById('prev-month').onclick = () => {
+        currentMonth--;
+        if (currentMonth < 0) {
+          currentMonth = 11;
+          currentYear--;
+        }
+        renderCalendar(currentYear, currentMonth);
+      };
+
+      document.getElementById('next-month').onclick = () => {
+        currentMonth++;
+        if (currentMonth > 11) {
+          currentMonth = 0;
+          currentYear++;
+        }
+        renderCalendar(currentYear, currentMonth);
+      };
     }
   </script>
 </body>
