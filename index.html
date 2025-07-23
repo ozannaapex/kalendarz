@@ -1,280 +1,171 @@
-<!DOCTYPE html>
-<html lang="pl">
-<head>
-  <meta charset="UTF-8">
-  <title>Kalendarz</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0 auto;
-      padding: 20px;
-      max-width: 100%;
-      box-sizing: border-box;
-    }
-
-    #controls {
-      text-align: center;
-      margin-bottom: 15px;
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    button {
-      padding: 8px 14px;
-      font-size: 16px;
-      border: none;
-      background-color: #007bff;
-      color: white;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background-color: #0056b3;
-    }
-
-    #current-month {
-      font-size: 18px;
-      font-weight: bold;
-      margin: 0 10px;
-      line-height: 5px;
-    }
-
-    #kalendarz-wrapper {
-      overflow-x: auto;
-      max-width: 100%;
-    }
-
-    table {
-      border-collapse: collapse;
-      margin: 0 auto;
-      width: max-content;
-      min-width: 100%;
-    }
-
-    th, td {
-      border: 1px solid #ccc;
-      text-align: center;
-      padding: 6px;
-      white-space: nowrap;
-      font-size: 14px;
-      vertical-align: middle;
-    }
-
-    th {
-      background-color: #f0f0f0;
-      position: sticky;
-      top: 0;
-      z-index: 1;
-    }
-
-    .left-half {
-      background: linear-gradient(to left, #ff4d4d 50%, transparent 50%);
-      font-weight: bold;
-      color: white;
-    }
-
-    .right-half {
-      background: linear-gradient(to right, #ff4d4d 50%, transparent 50%);
-      font-weight: bold;
-      color: white;
-    }
-
-    .full {
-      background-color: #ff4d4d;
-      font-weight: bold;
-      color: white;
-    }
-
-    .multi {
-      background: linear-gradient(to right, #ff4d4d 50%, #ff9999 50%);
-      font-weight: bold;
-      color: white;
-    }
-
-    td p {
-      margin: 2px 0;
-    }
-
-    @media (max-width: 768px) {
-      th, td {
-        font-size: 12px;
-        padding: 4px;
-      }
-
-      button {
-        font-size: 14px;
-        padding: 6px 10px;
-      }
-    }
-  </style>
-</head>
-<body>
-<div id="controls">
-  <button id="prev-month">&lt; Poprzedni</button>
-  <span id="current-month"></span>
-  <button id="next-month">Następny &gt;</button>
-</div>
-
-<div id="kalendarz-wrapper">
-  <div id="kalendarz"></div>
-</div>
-
-<script>
-  google.charts.load('current', {packages: ['corechart', 'table']});
-  google.charts.setOnLoadCallback(drawCalendar);
-
-  let currentYear, currentMonth;
-  let allRezerwacje = [];
-
-  function formatDate(d) {
-    const date = new Date(d);
-    return date.toISOString().split('T')[0];
+function handleQueryResponse(response) {
+  if (response.isError()) {
+    document.getElementById('kalendarz').innerHTML = 'Błąd w pobieraniu danych: ' + response.getMessage();
+    return;
   }
 
-  const monthNames = ["Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec", "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień"];
+  const data = response.getDataTable();
+  const rows = data.getNumberOfRows();
+  allRezerwacje = [];
 
-  function drawCalendar() {
-    const query = new google.visualization.Query('https://docs.google.com/spreadsheets/d/1ktIEbiKcIvKHN3N8hkBz5_1UNDJa5a78xYNuf4hoWN4/gviz/tq?sheet=Rezerwacje');
-    query.send(handleQueryResponse);
-  }
+  for (let i = 0; i < rows; i++) {
+    const dataOd = new Date(data.getValue(i, 0));
+    const dataDo = new Date(data.getValue(i, 1));
+    const domek = data.getValue(i, 2);
+    const imieNazwisko = data.getValue(i, 3);
+    const inicjaly = imieNazwisko ? imieNazwisko.substring(0, 3).toUpperCase() : '';
 
-  function handleQueryResponse(response) {
-    if (response.isError()) {
-      document.getElementById('kalendarz').innerHTML = 'Błąd w pobieraniu danych: ' + response.getMessage();
-      return;
+    // W tym obiekcie zapiszemy dni rezerwacji dla tego wiersza, żeby potem sprawdzić start i end na tym samym dniu
+    const dniRezerwacji = [];
+
+    for (let d = new Date(dataOd); d <= dataDo; d.setDate(d.getDate() + 1)) {
+      dniRezerwacji.push(new Date(d));
     }
 
-    const data = response.getDataTable();
-    const rows = data.getNumberOfRows();
-    allRezerwacje = [];
+    dniRezerwacji.forEach((dzien, idx) => {
+      const dzienStr = formatDate(dzien);
+      let typ = 'pełny';
 
-    for (let i = 0; i < rows; i++) {
-      const dataOd = new Date(data.getValue(i, 0));
-      const dataDo = new Date(data.getValue(i, 1));
-      const domek = data.getValue(i, 2);
-      const imieNazwisko = data.getValue(i, 3);
-      const inicjaly = imieNazwisko ? imieNazwisko.substring(0, 3) : '';
+      if (formatDate(dataOd) === formatDate(dataDo)) {
+        // Start i koniec tego samego dnia - dzień zmiany osoby
+        typ = 'both';
+      } else if (idx === 0) {
+        typ = 'start';
+      } else if (idx === dniRezerwacji.length - 1) {
+        typ = 'end';
+      }
 
-      // Dzień przyjazdu (prawa połowa)
-      const przyjazd = formatDate(dataOd);
       allRezerwacje.push({
         domek,
-        dzien: przyjazd,
-        typ: 'start',
-        inicjaly
+        dzien: dzienStr,
+        inicjaly,
+        typ
       });
+    });
+  }
 
-      // Dni pełne między przyjazdem i wyjazdem
-      let d = new Date(dataOd);
-      d.setDate(d.getDate() + 1);
-      while (d < dataDo) {
+  // Teraz łączymy wpisy, jeśli start i end są tego samego dnia i tego samego domku,
+  // żeby wyświetlić oba inicjały i napisy oddzielnie
+
+  // Grupujemy po domek + dzień
+  const rezerwacjeMap = new Map();
+
+  allRezerwacje.forEach(r => {
+    const key = r.domek + '|' + r.dzien;
+    if (!rezerwacjeMap.has(key)) {
+      rezerwacjeMap.set(key, []);
+    }
+    rezerwacjeMap.get(key).push(r);
+  });
+
+  // Teraz tworzymy nową listę allRezerwacje z uwzględnieniem dni zmiany
+  allRezerwacje = [];
+
+  for (const [key, entries] of rezerwacjeMap.entries()) {
+    const domek = entries[0].domek;
+    const dzien = entries[0].dzien;
+
+    const hasStart = entries.some(e => e.typ === 'start');
+    const hasEnd = entries.some(e => e.typ === 'end');
+    const inicjalyStart = entries.find(e => e.typ === 'start')?.inicjaly || '';
+    const inicjalyEnd = entries.find(e => e.typ === 'end')?.inicjaly || '';
+
+    if (hasStart && hasEnd) {
+      // Dzień zmiany osoby - oba inicjały w jednej komórce
+      allRezerwacje.push({
+        domek,
+        dzien,
+        inicjaly: inicjalyStart + ' ' + inicjalyEnd,
+        typ: 'both'
+      });
+    } else if (hasStart) {
+      allRezerwacje.push({
+        domek,
+        dzien,
+        inicjaly: inicjalyStart,
+        typ: 'start'
+      });
+    } else if (hasEnd) {
+      allRezerwacje.push({
+        domek,
+        dzien,
+        inicjaly: inicjalyEnd,
+        typ: 'end'
+      });
+    } else {
+      // Pełne dni (środkowe)
+      const full = entries.find(e => e.typ === 'pełny');
+      if (full) {
         allRezerwacje.push({
           domek,
-          dzien: formatDate(d),
-          typ: 'full',
-          inicjaly
+          dzien,
+          inicjaly: full.inicjaly,
+          typ: 'pełny'
         });
-        d.setDate(d.getDate() + 1);
       }
-
-      // Dzień wyjazdu (lewa połowa)
-      const wyjazd = formatDate(dataDo);
-      allRezerwacje.push({
-        domek,
-        dzien: wyjazd,
-        typ: 'end',
-        inicjaly
-      });
     }
-
-    const now = new Date();
-    currentYear = now.getFullYear();
-    currentMonth = now.getMonth();
-
-    renderCalendar(currentYear, currentMonth);
-    setupNavigation();
   }
 
-  function renderCalendar(year, month) {
-    const kalendarzDiv = document.getElementById('kalendarz');
-    document.getElementById('current-month').textContent = `${monthNames[month]} ${year}`;
+  // Ustawiamy miesiąc i rok na dziś
+  const now = new Date();
+  currentYear = now.getFullYear();
+  currentMonth = now.getMonth();
 
-    const filteredRezerwacje = allRezerwacje.filter(r => {
-      const date = new Date(r.dzien);
-      return date.getFullYear() === year && date.getMonth() === month;
-    });
+  renderCalendar(currentYear, currentMonth);
+  setupNavigation();
+}
 
-    const datySet = new Set();
-    const domkiSet = new Set();
+function renderCalendar(year, month) {
+  const kalendarzDiv = document.getElementById('kalendarz');
+  document.getElementById('current-month').textContent = `${monthNames[month]} ${year}`;
 
-    filteredRezerwacje.forEach(r => {
-      datySet.add(r.dzien);
-      domkiSet.add(r.domek);
-    });
+  const filteredRezerwacje = allRezerwacje.filter(r => {
+    const date = new Date(r.dzien);
+    return date.getFullYear() === year && date.getMonth() === month;
+  });
 
-    if (datySet.size === 0) {
-      kalendarzDiv.innerHTML = "<p style='text-align:center;'>Brak rezerwacji w tym miesiącu.</p>";
-      return;
-    }
+  const datySet = new Set();
+  const domkiSet = new Set();
 
-    const daty = Array.from(datySet).sort();
-    const domki = Array.from(domkiSet).sort();
+  filteredRezerwacje.forEach(r => {
+    datySet.add(r.dzien);
+    domkiSet.add(r.domek);
+  });
 
-    let html = '<table><thead><tr><th>Domek</th>';
-    daty.forEach(d => {
-      const day = d.split('-')[2];
-      html += `<th>${day}</th>`;
-    });
-    html += '</tr></thead><tbody>';
-
-    domki.forEach(domek => {
-      html += `<tr><td>${domek}</td>`;
-      daty.forEach(dzien => {
-        const wpisy = filteredRezerwacje.filter(r => r.domek === domek && r.dzien === dzien);
-        if (wpisy.length === 0) {
-          html += `<td></td>`;
-        } else if (wpisy.length === 1) {
-          const wpis = wpisy[0];
-          let klasa = wpis.typ === 'start' ? 'right-half' :
-                      wpis.typ === 'end' ? 'left-half' : 'full';
-          html += `<td class="${klasa}"><p>Zajęty</p><p>${wpis.inicjaly}</p></td>`;
-        } else {
-          // dzień zmiany — dwóch gości
-          const inicjaly = wpisy.map(w => w.inicjaly).join(' / ');
-          html += `<td class="multi"><p>Zajęty</p><p>${inicjaly}</p></td>`;
-        }
-      });
-      html += '</tr>';
-    });
-
-    html += '</tbody></table>';
-    kalendarzDiv.innerHTML = html;
+  if (datySet.size === 0) {
+    kalendarzDiv.innerHTML = "<p style='text-align:center;'>Brak rezerwacji w tym miesiącu.</p>";
+    return;
   }
 
-  function setupNavigation() {
-    document.getElementById('prev-month').onclick = () => {
-      currentMonth--;
-      if (currentMonth < 0) {
-        currentMonth = 11;
-        currentYear--;
+  const daty = Array.from(datySet).sort();
+  const domki = Array.from(domkiSet).sort();
+
+  let html = '<table><thead><tr><th>Domek</th>';
+  daty.forEach(d => {
+    const day = d.split('-')[2];
+    html += `<th>${day}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  domki.forEach(domek => {
+    html += `<tr><td>${domek}</td>`;
+    daty.forEach(dzien => {
+      const wpis = filteredRezerwacje.find(r => r.domek === domek && r.dzien === dzien);
+      if (wpis) {
+        let klasa = 'occupied';
+        if (wpis.typ === 'start') klasa = 'partial-start';
+        else if (wpis.typ === 'end') klasa = 'partial-end';
+        else if (wpis.typ === 'both') klasa = 'partial-both';
+
+        // Tekst z napisem "Zajęte" i inicjałami w dwóch akapitach
+        html += `<td class="${klasa}"><p>Zajęte</p><p>${wpis.inicjaly}</p></td>`;
+      } else {
+        html += `<td></td>`;
       }
-      renderCalendar(currentYear, currentMonth);
-    };
+    });
+    html += '</tr>';
+  });
 
-    document.getElementById('next-month').onclick = () => {
-      currentMonth++;
-      if (currentMonth > 11) {
-        currentMonth = 0;
-        currentYear++;
-      }
-      renderCalendar(currentYear, currentMonth);
-    };
-  }
-</script>
-</body>
-</html>
+  html += '</tbody></table>';
+  kalendarzDiv.innerHTML = html;
+}
