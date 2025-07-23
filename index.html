@@ -101,6 +101,10 @@
       margin-top: 5px;
     }
 
+    .weekend {
+      background-color: #f9f9f9;
+    }
+
     @media (max-width: 768px) {
       th, td {
         font-size: 12px;
@@ -209,8 +213,10 @@
 
       let html = '<table><thead><tr><th>Domek</th>';
       daty.forEach(d => {
-        const day = d.split('-')[2];
-        html += `<th>${day}</th>`;
+        const dayNum = d.split('-')[2];
+        const dow = new Date(d).getDay(); // 0 = niedziela, 6 = sobota
+        const weekendClass = (dow === 0 || dow === 6) ? ' class="weekend"' : '';
+        html += `<th${weekendClass}>${dayNum}</th>`;
       });
       html += '</tr></thead><tbody>';
 
@@ -218,13 +224,15 @@
         html += `<tr><td>${domek}</td>`;
         daty.forEach(dzien => {
           const wpisy = filteredRezerwacje.filter(r => r.domek === domek && r.dzien === dzien);
+          const dow = new Date(dzien).getDay();
+          const weekendClass = (dow === 0 || dow === 6) ? ' weekend' : '';
 
           if (wpisy.length === 1) {
             const wpis = wpisy[0];
             let klasa = 'occupied';
-            if (wpis.typ === 'start') klasa = 'partial-start';
-            else if (wpis.typ === 'end') klasa = 'partial-end';
-            html += `<td class="${klasa}">
+            if (wpis.typ === 'start') klasa = 'partial-end';   // prawa strona
+            else if (wpis.typ === 'end') klasa = 'partial-start'; // lewa strona
+            html += `<td class="${klasa}${weekendClass}">
                       <span>Zajęte</span>
                       <span class="nazwisko">${wpis.inicjaly}</span>
                     </td>`;
@@ -233,12 +241,12 @@
             const end = wpisy.find(w => w.typ === 'end');
             const inicjalyStart = start ? start.inicjaly : '';
             const inicjalyEnd = end ? end.inicjaly : '';
-            html += `<td class="conflict">
+            html += `<td class="conflict${weekendClass}">
                       <span>Zmiana</span>
                       <span class="nazwisko">${inicjalyEnd} ➝ ${inicjalyStart}</span>
                     </td>`;
           } else {
-            html += `<td></td>`;
+            html += `<td class="${weekendClass}"></td>`;
           }
         });
         html += '</tr>';
