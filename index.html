@@ -2,139 +2,236 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Kalendarz Rezerwacji</title>
+  <title>Kalendarz</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
   <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0 auto;
+      padding: 20px;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    #controls {
+      text-align: center;
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    button {
+      padding: 8px 14px;
+      font-size: 16px;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    #current-month {
+      font-size: 18px;
+      font-weight: bold;
+      margin: 0 10px;
+      line-height: 5px;
+    }
+
+    #kalendarz-wrapper {
+      overflow-x: auto;
+      max-width: 100%;
+    }
+
     table {
       border-collapse: collapse;
-      width: 100%;
-      table-layout: fixed;
+      margin: 0 auto;
+      width: max-content;
+      min-width: 100%;
     }
+
     th, td {
-      border: 1px solid #999;
-      padding: 5px;
+      border: 1px solid #ccc;
       text-align: center;
-      word-wrap: break-word;
+      padding: 6px;
+      white-space: nowrap;
+      font-size: 14px;
+      vertical-align: top;
     }
-    .occupied {
+
+    th {
+      background-color: #f0f0f0;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    .occupied-full {
       background-color: #ff4d4d;
       color: white;
       font-weight: bold;
     }
-    .checkin {
-      background: linear-gradient(to right, #ff4d4d 50%, transparent 50%);
-      color: white;
+
+    .occupied-am {
+      background: linear-gradient(to bottom, #ffcccc 50%, white 50%);
+      color: #b30000;
       font-weight: bold;
     }
-    .checkout {
-      background: linear-gradient(to right, transparent 50%, #ff4d4d 50%);
-      color: white;
+
+    .occupied-pm {
+      background: linear-gradient(to top, #ffcccc 50%, white 50%);
+      color: #b30000;
       font-weight: bold;
     }
-    td p {
-      margin: 2px 0;
+
+    .multi {
+      background: linear-gradient(to bottom, #ffcccc 50%, #ffe6e6 50%);
+      color: #b30000;
+      font-weight: bold;
+    }
+
+    p {
+      margin: 0;
       line-height: 1.2;
     }
-    th {
-      background-color: #f2f2f2;
-      position: sticky;
-      top: 0;
-      z-index: 2;
-    }
-    td:first-child {
-      font-weight: bold;
-      background-color: #f9f9f9;
-      position: sticky;
-      left: 0;
-      z-index: 1;
+
+    @media (max-width: 768px) {
+      th, td {
+        font-size: 12px;
+        padding: 4px;
+      }
+      button {
+        font-size: 14px;
+        padding: 6px 10px;
+      }
     }
   </style>
 </head>
 <body>
-  <div id="calendar"></div>
+  <div id="controls">
+    <button id="prev-month">&lt; Poprzedni</button>
+    <span id="current-month"></span>
+    <button id="next-month">Następny &gt;</button>
+  </div>
 
-  <script type="text/javascript">
+  <div id="kalendarz-wrapper">
+    <div id="kalendarz"></div>
+  </div>
+
+  <script>
     google.charts.load('current', { packages: ['corechart', 'table'] });
     google.charts.setOnLoadCallback(drawCalendar);
 
+    let currentYear, currentMonth;
+    let rezerwacjeMap = {};
+
+    function formatDate(d) {
+      const date = new Date(d);
+      return date.toISOString().split('T')[0];
+    }
+
+    const monthNames = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
+
     function drawCalendar() {
-      const spreadsheetId = '1ktIEbiKcIvKHN3N8hkBz5_1UNDJa5a78xYNuf4hoWN4';
-      const range = 'Rezerwacje!A1:E1000';
-      const query = new google.visualization.Query(
-        `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?sheet=Rezerwacje&range=${range}`
-      );
+      const query = new google.visualization.Query('https://docs.google.com/spreadsheets/d/1ktIEbiKcIvKHN3N8hkBz5_1UNDJa5a78xYNuf4hoWN4/gviz/tq?sheet=Rezerwacje');
       query.send(handleQueryResponse);
     }
 
     function handleQueryResponse(response) {
       if (response.isError()) {
-        document.getElementById('calendar').innerText = 'Błąd wczytywania danych';
+        document.getElementById('kalendarz').innerHTML = 'Błąd w pobieraniu danych: ' + response.getMessage();
         return;
       }
 
       const data = response.getDataTable();
-      const rezerwacje = [];
+      const rows = data.getNumberOfRows();
+      rezerwacjeMap = {};
 
-      for (let i = 1; i < data.getNumberOfRows(); i++) {
-        const domek = data.getValue(i, 0);
-        const dataOd = new Date(data.getValue(i, 1));
-        const dataDo = new Date(data.getValue(i, 2));
-        const imie = data.getValue(i, 3) || '';
-        const nazwisko = data.getValue(i, 4) || '';
-        const inicjaly = `${imie[0] || ''}${nazwisko[0] || ''}${nazwisko[1] || ''}`.toUpperCase();
+      for (let i = 0; i < rows; i++) {
+        const start = new Date(data.getValue(i, 0));
+        const end = new Date(data.getValue(i, 1));
+        const domek = data.getValue(i, 2);
+        const osoba = data.getValue(i, 3);
+        const inicjaly = osoba ? osoba.substring(0, 3) : "";
 
-        let d = new Date(dataOd);
-        while (d <= dataDo) {
-          const dzien = formatDate(d);
-          let typ = 'occupied';
-          if (formatDate(d) === formatDate(dataOd)) typ = 'checkin';
-          else if (formatDate(d) === formatDate(dataDo)) typ = 'checkout';
+        const dStart = formatDate(start);
+        const dEnd = formatDate(end);
 
-          rezerwacje.push({
-            domek,
-            dzien,
-            nazwisko: inicjaly,
-            typ
-          });
+        // Dzień przyjazdu (po południu)
+        addToMap(domek, dStart, 'pm', inicjaly);
 
-          d = new Date(d);
+        // Dni pośrednie
+        const d = new Date(start);
+        d.setDate(d.getDate() + 1);
+        while (d < end) {
+          addToMap(domek, formatDate(d), 'full', inicjaly);
           d.setDate(d.getDate() + 1);
+        }
+
+        // Dzień wyjazdu (rano)
+        addToMap(domek, dEnd, 'am', inicjaly);
+      }
+
+      const now = new Date();
+      currentYear = now.getFullYear();
+      currentMonth = now.getMonth();
+      renderCalendar();
+      setupNavigation();
+    }
+
+    function addToMap(domek, dzien, typ, inicjaly) {
+      const key = `${domek}_${dzien}`;
+      if (!rezerwacjeMap[key]) rezerwacjeMap[key] = [];
+      rezerwacjeMap[key].push({ typ, inicjaly });
+    }
+
+    function renderCalendar() {
+      const kalendarzDiv = document.getElementById('kalendarz');
+      document.getElementById('current-month').textContent = `${monthNames[currentMonth]} ${currentYear}`;
+
+      const datySet = new Set();
+      const domkiSet = new Set();
+
+      for (let key in rezerwacjeMap) {
+        const [domek, dzien] = key.split('_');
+        const date = new Date(dzien);
+        if (date.getFullYear() === currentYear && date.getMonth() === currentMonth) {
+          datySet.add(dzien);
+          domkiSet.add(domek);
         }
       }
 
-      renderCalendar(rezerwacje);
-    }
+      const daty = Array.from(datySet).sort();
+      const domki = Array.from(domkiSet).sort();
 
-    function formatDate(date) {
-      const d = new Date(date);
-      return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
-    }
-
-    function renderCalendar(rezerwacje) {
-      const domki = [...new Set(rezerwacje.map(r => r.domek))];
-      const daty = [...new Set(rezerwacje.map(r => r.dzien))].sort();
-
-      const tabela = {};
-      rezerwacje.forEach(r => {
-        tabela[r.domek] = tabela[r.domek] || {};
-        tabela[r.domek][r.dzien] = { nazwisko: r.nazwisko, typ: r.typ };
-      });
+      if (daty.length === 0) {
+        kalendarzDiv.innerHTML = "<p style='text-align:center;'>Brak rezerwacji w tym miesiącu.</p>";
+        return;
+      }
 
       let html = '<table><thead><tr><th>Domek</th>';
-      daty.forEach(d => {
-        html += `<th>${d.slice(5)}</th>`;
-      });
+      daty.forEach(d => html += `<th>${d.split('-')[2]}</th>`);
       html += '</tr></thead><tbody>';
 
       domki.forEach(domek => {
         html += `<tr><td>${domek}</td>`;
         daty.forEach(dzien => {
-          const wpis = tabela[domek]?.[dzien];
-          if (wpis) {
-            const klasa = wpis.typ === 'checkin' ? 'checkin' :
-                          wpis.typ === 'checkout' ? 'checkout' : 'occupied';
-            html += `<td class="${klasa}"><p>Zajęte</p><p>${wpis.nazwisko}</p></td>`;
+          const key = `${domek}_${dzien}`;
+          const wpisy = rezerwacjeMap[key];
+
+          if (wpisy) {
+            let klasy = new Set(wpisy.map(w => w.typ === 'full' ? 'occupied-full' : w.typ === 'pm' ? 'occupied-pm' : 'occupied-am'));
+            let klasa = 'multi';
+            if (klasy.size === 1) klasa = [...klasy][0];
+
+            let tekst = wpisy.map(w => `<p>Zajęte</p><p>${w.inicjaly}</p>`).join('');
+            html += `<td class="${klasa}">${tekst}</td>`;
           } else {
             html += '<td></td>';
           }
@@ -143,7 +240,27 @@
       });
 
       html += '</tbody></table>';
-      document.getElementById('calendar').innerHTML = html;
+      kalendarzDiv.innerHTML = html;
+    }
+
+    function setupNavigation() {
+      document.getElementById('prev-month').onclick = () => {
+        currentMonth--;
+        if (currentMonth < 0) {
+          currentMonth = 11;
+          currentYear--;
+        }
+        renderCalendar();
+      };
+
+      document.getElementById('next-month').onclick = () => {
+        currentMonth++;
+        if (currentMonth > 11) {
+          currentMonth = 0;
+          currentYear++;
+        }
+        renderCalendar();
+      };
     }
   </script>
 </body>
