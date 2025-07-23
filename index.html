@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Kalendarz Rezerwacji</title>
+  <title>Kalendarz</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
   <style>
@@ -13,7 +13,7 @@
       max-width: 100%;
       box-sizing: border-box;
     }
-    /* Usunięto styl dla h2 bo nagłówek usunięty */
+
     #controls {
       text-align: center;
       margin-bottom: 15px;
@@ -22,6 +22,7 @@
       flex-wrap: wrap;
       gap: 10px;
     }
+
     button {
       padding: 8px 14px;
       font-size: 16px;
@@ -31,6 +32,7 @@
       border-radius: 4px;
       cursor: pointer;
     }
+
     button:hover {
       background-color: #0056b3;
     }
@@ -69,16 +71,14 @@
       z-index: 1;
     }
 
-    /* Zmieniono kolor zajętych pól na czerwony */
     .occupied {
-      background-color: #ff4d4d; /* jasnoczerwony */
+      background-color: #ff4d4d;
       font-weight: bold;
       cursor: default;
       color: white;
     }
 
     @media (max-width: 768px) {
-      /* Usunięto h2, ale zostawiłem na wypadek gdyby był potrzebny */
       th, td {
         font-size: 12px;
         padding: 4px;
@@ -88,6 +88,7 @@
         padding: 6px 10px;
       }
     }
+
     iframe {
       width: 100% !important;
       max-width: 960px;
@@ -96,7 +97,6 @@
   </style>
 </head>
 <body>
-  <!-- Usunięto <h2>Kalendarz Rezerwacji</h2> -->
   <div id="controls">
     <button id="prev-month">&lt; Poprzedni</button>
     <span id="current-month"></span>
@@ -106,13 +106,9 @@
   <div id="kalendarz-wrapper">
     <div id="kalendarz"></div>
   </div>
-  <div style="max-width: 100%; overflow-x: auto;">
-    <table style="min-width: 960px;">
-      <!-- reszta kalendarza -->
-    </table>
-  </div>
+
   <script>
-    google.charts.load('current', {packages: ['corechart', 'table']});
+    google.charts.load('current', { packages: ['corechart', 'table'] });
     google.charts.setOnLoadCallback(drawCalendar);
 
     let currentYear, currentMonth;
@@ -144,8 +140,9 @@
         const dataOd = new Date(data.getValue(i, 0));
         const dataDo = new Date(data.getValue(i, 1));
         const domek = data.getValue(i, 2);
+        const imieNazwisko = data.getValue(i, 3);
+        const inicjaly = imieNazwisko ? imieNazwisko.substring(0, 3) : '';
         const nazwisko = `Zajęty - ${inicjaly}`;
-
 
         for (let d = new Date(dataOd); d < dataDo; d.setDate(d.getDate() + 1)) {
           allRezerwacje.push({
