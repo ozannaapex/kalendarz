@@ -62,6 +62,7 @@
       padding: 6px;
       white-space: nowrap;
       font-size: 14px;
+      min-width: 70px;
     }
 
     th {
@@ -74,26 +75,27 @@
     .occupied {
       background-color: #ff4d4d;
       font-weight: bold;
-      cursor: default;
       color: white;
     }
 
     .partial-start {
-      background: linear-gradient(to right, #ff4d4d 50%, white 50%);
+      background: linear-gradient(to right, white 50%, #ff4d4d 50%);
       font-weight: bold;
-      color: white;
+      color: #ff4d4d;
     }
 
     .partial-end {
-      background: linear-gradient(to left, #ff4d4d 50%, white 50%);
+      background: linear-gradient(to left, white 50%, #ff4d4d 50%);
       font-weight: bold;
-      color: white;
+      color: #ff4d4d;
     }
 
     .cell-content {
-      margin: 0;
-      padding: 0;
-      line-height: 1.2;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      line-height: 1.1em;
     }
 
     @media (max-width: 768px) {
@@ -133,8 +135,7 @@
     let allRezerwacje = [];
 
     function formatDate(d) {
-      const date = new Date(d);
-      return date.toISOString().split('T')[0];
+      return d.toISOString().split('T')[0];
     }
 
     const monthNames = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
@@ -160,24 +161,18 @@
         const domek = data.getValue(i, 2);
         const imieNazwisko = data.getValue(i, 3);
         const inicjaly = imieNazwisko ? imieNazwisko.substring(0, 3) : '';
-        const nazwisko = `<p class="cell-content">Zajęty</p><p class="cell-content">${inicjaly}</p>`;
-
-        const dzienOd = formatDate(dataOd);
-        const dzienDo = formatDate(dataDo);
 
         for (let d = new Date(dataOd); d <= dataDo; d.setDate(d.getDate() + 1)) {
+          let typ = 'pełny';
           const dzien = formatDate(d);
-          let typ = 'full';
-          if (dzien === dzienOd) typ = 'end'; // przyjazd – prawa połowa
-          else if (dzien === dzienDo) typ = 'start'; // wyjazd – lewa połowa
 
-          // Jeśli tylko jeden dzień – oznacz jako pełny
-          if (dzienOd === dzienDo) typ = 'full';
+          if (dzien === formatDate(dataOd)) typ = 'start';
+          else if (dzien === formatDate(dataDo)) typ = 'end';
 
           allRezerwacje.push({
             domek,
             dzien,
-            nazwisko,
+            inicjaly,
             typ
           });
         }
@@ -195,43 +190,53 @@
       const kalendarzDiv = document.getElementById('kalendarz');
       document.getElementById('current-month').textContent = `${monthNames[month]} ${year}`;
 
-      const filteredRezerwacje = allRezerwacje.filter(r => {
+      const filtered = allRezerwacje.filter(r => {
         const date = new Date(r.dzien);
         return date.getFullYear() === year && date.getMonth() === month;
       });
 
       const datySet = new Set();
       const domkiSet = new Set();
+      const zajetosc = {};
 
-      filteredRezerwacje.forEach(r => {
+      filtered.forEach(r => {
         datySet.add(r.dzien);
         domkiSet.add(r.domek);
+        const key = `${r.domek}_${r.dzien}`;
+        if (!zajetosc[key]) zajetosc[key] = [];
+        zajetosc[key].push(r.typ + '|' + r.inicjaly);
       });
-
-      if (datySet.size === 0) {
-        kalendarzDiv.innerHTML = "<p style='text-align:center;'>Brak rezerwacji w tym miesiącu.</p>";
-        return;
-      }
 
       const daty = Array.from(datySet).sort();
       const domki = Array.from(domkiSet).sort();
 
       let html = '<table><thead><tr><th>Domek</th>';
       daty.forEach(d => {
-        const day = d.split('-')[2];
-        html += `<th>${day}</th>`;
+        html += `<th>${d.split('-')[2]}</th>`;
       });
       html += '</tr></thead><tbody>';
 
       domki.forEach(domek => {
         html += `<tr><td>${domek}</td>`;
         daty.forEach(dzien => {
-          const wpis = filteredRezerwacje.find(r => r.domek === domek && r.dzien === dzien);
-          if (wpis) {
-            let klasa = 'occupied';
-            if (wpis.typ === 'start') klasa = 'partial-start';
-            else if (wpis.typ === 'end') klasa = 'partial-end';
-            html += `<td class="${klasa}">${wpis.nazwisko}</td>`;
+          const key = `${domek}_${dzien}`;
+          const wpisy = zajetosc[key];
+          if (wpisy) {
+            let klasa = '';
+            let inicjaly = [];
+            const typy = wpisy.map(w => w.split('|')[0]);
+            wpisy.forEach(w => inicjaly.push(w.split('|')[1]));
+
+            const unikalneTypy = [...new Set(typy)];
+            if (unikalneTypy.length > 1 || typy[0] === 'pełny') {
+              klasa = 'occupied';
+            } else if (typy[0] === 'start') {
+              klasa = 'partial-start';
+            } else if (typy[0] === 'end') {
+              klasa = 'partial-end';
+            }
+
+            html += `<td class="${klasa}"><div class="cell-content"><div>Zajęte</div><div>${[...new Set(inicjaly)].join(', ')}</div></div></td>`;
           } else {
             html += `<td></td>`;
           }
