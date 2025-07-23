@@ -235,8 +235,8 @@
           if (wpis) {
             let klasa = 'occupied';
             let nazwisko = wpis.nazwisko;
-            if (wpis.typ === 'start') klasa = 'partial-start';
-            else if (wpis.typ === 'end') klasa = 'partial-end';
+            if (wpis.typ === 'start') klasa = 'partial-end';  // Zmieniono z 'partial-start'
+            else if (wpis.typ === 'end') klasa = 'partial-start';  // Zmieniono z 'partial-end'
 
             // Dodanie inicjałów oddzielonych ukośnikiem w dniu zmiany
             if (wpis.typ === 'start' || wpis.typ === 'end') {
