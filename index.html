@@ -74,16 +74,17 @@
     .occupied {
       background-color: #ff4d4d;
       font-weight: bold;
-      cursor: default;
       color: white;
     }
 
+    /* Zmiana: PRZYJAZD = prawa połowa komórki */
     .partial-start {
-      background: linear-gradient(to left, #ff4d4d 50%, white 50%);
+      background: linear-gradient(to left, white 50%, #ff4d4d 50%);
       font-weight: bold;
       color: white;
     }
 
+    /* Zmiana: WYJAZD = lewa połowa komórki */
     .partial-end {
       background: linear-gradient(to right, #ff4d4d 50%, white 50%);
       font-weight: bold;
@@ -217,8 +218,8 @@
           const wpis = filteredRezerwacje.find(r => r.domek === domek && r.dzien === dzien);
           if (wpis) {
             let klasa = 'occupied';
-            if (wpis.typ === 'start') klasa = 'partial-start';
-            else if (wpis.typ === 'end') klasa = 'partial-end';
+            if (wpis.typ === 'start') klasa = 'partial-end';     // Przyjazd = prawa strona
+            else if (wpis.typ === 'end') klasa = 'partial-start'; // Wyjazd = lewa strona
             html += `<td class="${klasa}">${wpis.nazwisko}</td>`;
           } else {
             html += `<td></td>`;
