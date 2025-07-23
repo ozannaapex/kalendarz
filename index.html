@@ -74,21 +74,20 @@
     .occupied {
       background-color: #ff4d4d;
       font-weight: bold;
+      cursor: default;
       color: white;
     }
 
-    /* Zmiana: PRZYJAZD = prawa połowa komórki */
-    .partial-start {
-      background: linear-gradient(to left, white 50%, #ff4d4d 50%);
+    .partial-right {
+      background: linear-gradient(to right, white 50%, #ff4d4d 50%);
       font-weight: bold;
-      color: white;
+      color: #ff4d4d;
     }
 
-    /* Zmiana: WYJAZD = lewa połowa komórki */
-    .partial-end {
+    .partial-left {
       background: linear-gradient(to right, #ff4d4d 50%, white 50%);
       font-weight: bold;
-      color: white;
+      color: #ff4d4d;
     }
 
     @media (max-width: 768px) {
@@ -157,11 +156,14 @@
         const inicjaly = imieNazwisko ? imieNazwisko.substring(0, 3) : '';
         const nazwisko = `Zajęty - ${inicjaly}`;
 
-        for (let d = new Date(dataOd); d <= dataDo; d.setDate(d.getDate() + 1)) {
+        const startDate = new Date(dataOd);
+        const endDate = new Date(dataDo);
+
+        for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
           const dzien = formatDate(d);
-          let typ = 'pełny';
-          if (dzien === formatDate(dataOd)) typ = 'start';
-          else if (dzien === formatDate(dataDo)) typ = 'end';
+          let typ = 'middle';
+          if (dzien === formatDate(startDate)) typ = 'start';
+          else if (dzien === formatDate(endDate)) typ = 'end';
 
           allRezerwacje.push({
             domek,
@@ -218,8 +220,8 @@
           const wpis = filteredRezerwacje.find(r => r.domek === domek && r.dzien === dzien);
           if (wpis) {
             let klasa = 'occupied';
-            if (wpis.typ === 'start') klasa = 'partial-end';     // Przyjazd = prawa strona
-            else if (wpis.typ === 'end') klasa = 'partial-start'; // Wyjazd = lewa strona
+            if (wpis.typ === 'start') klasa = 'partial-right';
+            else if (wpis.typ === 'end') klasa = 'partial-left';
             html += `<td class="${klasa}">${wpis.nazwisko}</td>`;
           } else {
             html += `<td></td>`;
