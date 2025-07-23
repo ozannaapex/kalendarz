@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Kalendarz</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
   <style>
     body {
@@ -13,6 +13,7 @@
       max-width: 100%;
       box-sizing: border-box;
     }
+
     #controls {
       text-align: center;
       margin-bottom: 15px;
@@ -21,6 +22,7 @@
       flex-wrap: wrap;
       gap: 10px;
     }
+
     button {
       padding: 8px 14px;
       font-size: 16px;
@@ -30,75 +32,74 @@
       border-radius: 4px;
       cursor: pointer;
     }
+
     button:hover {
       background-color: #0056b3;
     }
+
     #current-month {
       font-size: 18px;
       font-weight: bold;
       margin: 0 10px;
       line-height: 5px;
     }
+
     #kalendarz-wrapper {
       overflow-x: auto;
       max-width: 100%;
     }
+
     table {
       border-collapse: collapse;
       margin: 0 auto;
       width: max-content;
       min-width: 100%;
     }
-    th,
-    td {
+
+    th, td {
       border: 1px solid #ccc;
       text-align: center;
       padding: 6px;
       white-space: nowrap;
       font-size: 14px;
-      vertical-align: middle;
     }
+
     th {
       background-color: #f0f0f0;
       position: sticky;
       top: 0;
       z-index: 1;
     }
+
     .occupied {
       background-color: #ff4d4d;
       font-weight: bold;
       cursor: default;
       color: white;
     }
- .partial-start {
-  /* Czerwona prawa połowa, biała lewa */
-  background: linear-gradient(to left, #ff4d4d 50%, white 50%);
-  font-weight: bold;
-  color: white;
-  position: relative;
-}
 
-.partial-end {
-  /* Czerwona lewa połowa, biała prawa */
-  background: linear-gradient(to right, #ff4d4d 50%, white 50%);
-  font-weight: bold;
-  color: white;
-  position: relative;
-}
-    }
-    .partial-both {
-      /* gdy start i end tego samego dnia - połowa z lewej czerwony, połowa z prawej czerwony */
-      background: linear-gradient(to right, #ff4d4d 45%, white 45%, white 55%, #ff4d4d 55%);
+    .partial-start {
+      background: linear-gradient(to right, #ff4d4d 50%, white 50%);
       font-weight: bold;
       color: white;
     }
-    .occupied p {
-      margin: 2px 0;
-      line-height: 1.1;
+
+    .partial-end {
+      background: linear-gradient(to left, #ff4d4d 50%, white 50%);
+      font-weight: bold;
+      color: white;
     }
+
+    .occupied .nazwisko,
+    .partial-start .nazwisko,
+    .partial-end .nazwisko {
+      display: block;
+      font-size: 12px;
+      margin: 5px 0 0;
+    }
+
     @media (max-width: 768px) {
-      th,
-      td {
+      th, td {
         font-size: 12px;
         padding: 4px;
       }
@@ -107,6 +108,7 @@
         padding: 6px 10px;
       }
     }
+
     iframe {
       width: 100% !important;
       max-width: 960px;
@@ -126,7 +128,7 @@
   </div>
 
   <script>
-    google.charts.load("current", { packages: ["corechart", "table"] });
+    google.charts.load('current', { packages: ['corechart', 'table'] });
     google.charts.setOnLoadCallback(drawCalendar);
 
     let currentYear, currentMonth;
@@ -134,41 +136,19 @@
 
     function formatDate(d) {
       const date = new Date(d);
-      return date.toISOString().split("T")[0];
+      return date.toISOString().split('T')[0];
     }
 
-    const monthNames = [
-      "Styczeń",
-      "Luty",
-      "Marzec",
-      "Kwiecień",
-      "Maj",
-      "Czerwiec",
-      "Lipiec",
-      "Sierpień",
-      "Wrzesień",
-      "Październik",
-      "Listopad",
-      "Grudzień",
-    ];
-
-    function getInitials(name) {
-      // Weź pierwsze 3 znaki z imienia i nazwiska bez spacji
-      if (!name) return "";
-      return name.replace(/\s+/g, "").substring(0, 3);
-    }
+    const monthNames = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
 
     function drawCalendar() {
-      const query = new google.visualization.Query(
-        "https://docs.google.com/spreadsheets/d/1ktIEbiKcIvKHN3N8hkBz5_1UNDJa5a78xYNuf4hoWN4/gviz/tq?sheet=Rezerwacje"
-      );
+      const query = new google.visualization.Query('https://docs.google.com/spreadsheets/d/1ktIEbiKcIvKHN3N8hkBz5_1UNDJa5a78xYNuf4hoWN4/gviz/tq?sheet=Rezerwacje');
       query.send(handleQueryResponse);
     }
 
     function handleQueryResponse(response) {
       if (response.isError()) {
-        document.getElementById("kalendarz").innerHTML =
-          "Błąd w pobieraniu danych: " + response.getMessage();
+        document.getElementById('kalendarz').innerHTML = 'Błąd w pobieraniu danych: ' + response.getMessage();
         return;
       }
 
@@ -177,56 +157,24 @@
       allRezerwacje = [];
 
       for (let i = 0; i < rows; i++) {
-        const dataOdRaw = data.getValue(i, 0);
-        const dataDoRaw = data.getValue(i, 1);
+        const dataOd = new Date(data.getValue(i, 0));
+        const dataDo = new Date(data.getValue(i, 1));
         const domek = data.getValue(i, 2);
         const imieNazwisko = data.getValue(i, 3);
-        const inicjaly = getInitials(imieNazwisko);
-        if (!dataOdRaw || !dataDoRaw) continue; // skip if missing dates
+        const inicjaly = imieNazwisko ? imieNazwisko.substring(0, 3) : '';
+        const nazwisko = `Zajęty - ${inicjaly}`;
 
-        // Ustaw godziny: dataOd od 14:00, dataDo do 11:00 następnego dnia
-        // Aby zaznaczyć "start" i "end" odpowiednio względem doby hotelowej
-
-        // dataOd + godzina 14:00
-        const dataOd = new Date(dataOdRaw);
-        dataOd.setHours(14, 0, 0, 0);
-        // dataDo + godzina 11:00
-        const dataDo = new Date(dataDoRaw);
-        dataDo.setHours(11, 0, 0, 0);
-
-        // Dla każdego dnia w rezerwacji tworzymy wpisy z oznaczeniem start/end/pełny
-
-        // Użyj pomocniczego iteratora daty, ale z godz. 0:00 dla porównania dni
-        const dataOdDay = new Date(dataOdRaw);
-        const dataDoDay = new Date(dataDoRaw);
-
-        for (
-          let d = new Date(dataOdDay);
-          d <= dataDoDay;
-          d.setDate(d.getDate() + 1)
-        ) {
+        for (let d = new Date(dataOd); d <= dataDo; d.setDate(d.getDate() + 1)) {
           const dzien = formatDate(d);
-
-          // Określamy typ oznaczenia
-          // Jeśli dzien to ten sam co dataOdDay → start
-          // Jeśli dzien to dataDoDay → end
-          // Jeśli start i end w tym samym dniu → special 'both'
-
-          let typ = "pełny";
-          if (dataOdDay.getTime() === dataDoDay.getTime()) {
-            // Wynajem zaczyna się i kończy tego samego dnia (zmiana)
-            typ = "both";
-          } else if (dzien === formatDate(dataOdDay)) {
-            typ = "start";
-          } else if (dzien === formatDate(dataDoDay)) {
-            typ = "end";
-          }
+          let typ = 'pełny';
+          if (dzien === formatDate(dataOd)) typ = 'start';
+          else if (dzien === formatDate(dataDo)) typ = 'end';
 
           allRezerwacje.push({
             domek,
             dzien,
-            inicjaly,
-            typ,
+            nazwisko,
+            typ
           });
         }
       }
@@ -240,20 +188,18 @@
     }
 
     function renderCalendar(year, month) {
-      const kalendarzDiv = document.getElementById("kalendarz");
-      document.getElementById("current-month").textContent = `${monthNames[month]} ${year}`;
+      const kalendarzDiv = document.getElementById('kalendarz');
+      document.getElementById('current-month').textContent = `${monthNames[month]} ${year}`;
 
-      // Filtruj rezerwacje dla aktualnego miesiąca
-      const filteredRezerwacje = allRezerwacje.filter((r) => {
+      const filteredRezerwacje = allRezerwacje.filter(r => {
         const date = new Date(r.dzien);
         return date.getFullYear() === year && date.getMonth() === month;
       });
 
-      // Zbierz unikalne dni i domki
       const datySet = new Set();
       const domkiSet = new Set();
 
-      filteredRezerwacje.forEach((r) => {
+      filteredRezerwacje.forEach(r => {
         datySet.add(r.dzien);
         domkiSet.add(r.domek);
       });
@@ -266,67 +212,38 @@
       const daty = Array.from(datySet).sort();
       const domki = Array.from(domkiSet).sort();
 
-      let html = "<table><thead><tr><th>Domek</th>";
-      daty.forEach((d) => {
-        const day = d.split("-")[2];
+      let html = '<table><thead><tr><th>Domek</th>';
+      daty.forEach(d => {
+        const day = d.split('-')[2];
         html += `<th>${day}</th>`;
       });
-      html += "</tr></thead><tbody>";
+      html += '</tr></thead><tbody>';
 
-      domki.forEach((domek) => {
+      domki.forEach(domek => {
         html += `<tr><td>${domek}</td>`;
-        daty.forEach((dzien) => {
-          // Znajdź wszystkie wpisy na ten domek i dzien (może być 0, 1 lub 2 gdy zmiana)
-          const wpisy = filteredRezerwacje.filter(
-            (r) => r.domek === domek && r.dzien === dzien
-          );
-
-          if (wpisy.length === 0) {
+        daty.forEach(dzien => {
+          const wpis = filteredRezerwacje.find(r => r.domek === domek && r.dzien === dzien);
+          if (wpis) {
+            let klasa = 'occupied';
+            if (wpis.typ === 'start') klasa = 'partial-start';
+            else if (wpis.typ === 'end') klasa = 'partial-end';
+            html += `<td class="${klasa}">
+                      <span>Zajęte</span>
+                      <span class="nazwisko">${wpis.nazwisko.replace(/ - /, "/")}</span>
+                    </td>`;
+          } else {
             html += `<td></td>`;
-            return;
           }
-
-          // Jeśli jest wpis z typem 'both' (start i end tego samego dnia)
-          const bothEntry = wpisy.find((r) => r.typ === "both");
-          if (bothEntry) {
-            html += `<td class="partial-both">
-                      <p>Zajęty</p>
-                      <p>${bothEntry.inicjaly}/${bothEntry.inicjaly}</p>
-                    </td>`;
-            return;
-          }
-
-          // Jeśli jest start i end jednocześnie na ten dzień to złącz inicjały
-          const startEntry = wpisy.find((r) => r.typ === "start");
-          const endEntry = wpisy.find((r) => r.typ === "end");
-          if (startEntry && endEntry) {
-            html += `<td class="partial-both">
-                      <p>Zajęty</p>
-                      <p>${startEntry.inicjaly}/${endEntry.inicjaly}</p>
-                    </td>`;
-            return;
-          }
-
-          // Jeśli jest tylko start lub tylko end lub pełny
-          const entry = wpisy[0];
-          let klasa = "occupied";
-          if (entry.typ === "start") klasa = "partial-start";
-          else if (entry.typ === "end") klasa = "partial-end";
-
-          html += `<td class="${klasa}">
-                      <p>Zajęty</p>
-                      <p>${entry.inicjaly}</p>
-                   </td>`;
         });
-        html += "</tr>";
+        html += '</tr>';
       });
 
-      html += "</tbody></table>";
+      html += '</tbody></table>';
       kalendarzDiv.innerHTML = html;
     }
 
     function setupNavigation() {
-      document.getElementById("prev-month").onclick = () => {
+      document.getElementById('prev-month').onclick = () => {
         currentMonth--;
         if (currentMonth < 0) {
           currentMonth = 11;
@@ -335,15 +252,4 @@
         renderCalendar(currentYear, currentMonth);
       };
 
-      document.getElementById("next-month").onclick = () => {
-        currentMonth++;
-        if (currentMonth > 11) {
-          currentMonth = 0;
-          currentYear++;
-        }
-        renderCalendar(currentYear, currentMonth);
-      };
-    }
-  </script>
-</body>
-</html>
+      document.getElementById('next-month').onclick =
