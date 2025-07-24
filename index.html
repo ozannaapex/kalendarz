@@ -201,7 +201,8 @@
         const end = parseDateFromSheet(data.getValue(i, 1));
         const domek = data.getValue(i, 2);
         const osoba = data.getValue(i, 3);
-        const inicjaly = osoba ? osoba.substring(0, 3) : "";
+        // Zmiana: pobieramy tylko pierwszą literę imienia i pierwszą literę nazwiska
+        const inicjaly = osoba ? osoba.split(' ').map(name => name[0]).join('') : "";
 
         const dStart = formatDateKey(start);
         const dEnd = formatDateKey(end);
