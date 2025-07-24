@@ -116,6 +116,11 @@
       font-weight: bold;
     }
 
+    .past-day {
+      opacity: 0.5;
+      background-color: #f0f0f0 !important;
+    }
+
     p {
       margin: 0;
       line-height: 1.2;
@@ -166,6 +171,12 @@
     function isWeekend(date) {
       const day = date.getUTCDay();
       return day === 0 || day === 6;
+    }
+
+    function isPastDay(date) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return date < today;
     }
 
     const monthNames = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
@@ -251,7 +262,8 @@
         const date = new Date(d + 'T00:00:00Z');
         const dayNumber = date.getUTCDate();
         const isWeekendDay = isWeekend(date);
-        html += `<th class="${isWeekendDay ? 'weekend' : ''}">${dayNumber}</th>`;
+        const isPast = isPastDay(date);
+        html += `<th class="${isWeekendDay ? 'weekend' : ''} ${isPast ? 'past-day' : ''}">${dayNumber}</th>`;
       });
       html += '</tr></thead><tbody>';
 
@@ -260,10 +272,13 @@
         daty.forEach(dzien => {
           const date = new Date(dzien + 'T00:00:00Z');
           const isWeekendDay = isWeekend(date);
+          const isPast = isPastDay(date);
           const key = `${domek}_${dzien}`;
           const wpisy = rezerwacjeMap[key];
 
           let cellClass = isWeekendDay ? 'weekend' : '';
+          if (isPast) cellClass += cellClass ? ' past-day' : 'past-day';
+          
           if (wpisy) {
             let klasy = new Set(wpisy.map(w => w.typ === 'full' ? 'occupied-full' : w.typ === 'pm' ? 'occupied-pm' : 'occupied-am'));
             let klasa = 'multi';
@@ -271,7 +286,7 @@
             cellClass += cellClass ? ' ' + klasa : klasa;
 
             let tekst = wpisy.map(w => `<p>Zajęte</p><p>${w.inicjaly}</p>`).join('');
-            html += `<td class="${cellClass}">${tekst}</td>`;
+            html += `<td class="${cellClass}">${isPast ? '' : tekst}</td>`;
           } else {
             html += `<td class="${cellClass}"></td>`;
           }
