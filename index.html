@@ -2,160 +2,309 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Kalendarz</title>
+  <title>Kalendarz i wyszukiwarka wolnych terminów</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0 auto;
-      padding: 20px;
-      max-width: 100%;
+    * {
       box-sizing: border-box;
     }
+    
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      min-width: 100%;
+      overflow-x: hidden;
+    }
 
-    #controls {
+    .container {
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      padding: 10px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 20px;
+    }
+
+    .section {
+      margin-bottom: 30px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      overflow: hidden;
+      width: 100%;
+    }
+
+    .section-title {
+      background: #4CAF50;
+      color: white;
+      padding: 10px 15px;
+      margin: 0;
+      font-size: 18px;
+    }
+
+    /* Style dla kalendarza */
+    #kalendarz-controls {
       text-align: center;
       margin-bottom: 15px;
       display: flex;
       justify-content: center;
       flex-wrap: wrap;
       gap: 10px;
-    }
-
-    button {
-      padding: 8px 14px;
-      font-size: 16px;
-      border: none;
-      background-color: #007bff;
-      color: white;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background-color: #0056b3;
-    }
-
-    #current-month {
-      font-size: 18px;
-      font-weight: bold;
-      margin: 0 10px;
-      line-height: 5px;
+      width: 100%;
+      padding: 0 10px;
     }
 
     #kalendarz-wrapper {
+      width: 100%;
       overflow-x: auto;
-      max-width: 100%;
-      position: relative;
+      -webkit-overflow-scrolling: touch;
     }
 
-    table {
-      border-collapse: collapse;
-      margin: 0 auto;
-      width: max-content;
+    #kalendarz {
+      width: 100%;
       min-width: 100%;
     }
 
-    th, td {
+    #kalendarz table {
+      width: 100%;
+      min-width: 100%;
+      border-collapse: collapse;
+      table-layout: auto;
+    }
+
+    #kalendarz th, #kalendarz td {
       border: 1px solid #ccc;
       text-align: center;
       padding: 6px;
-      white-space: nowrap;
       font-size: 14px;
       vertical-align: top;
+      word-wrap: break-word;
     }
 
-    th {
+    #kalendarz th:first-child,
+    #kalendarz td:first-child {
+      width: 100px;
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      background-color: #f0f0f0;
+    }
+
+    #kalendarz th {
       background-color: #f0f0f0;
       position: sticky;
       top: 0;
-      z-index: 2;
-    }
-
-    /* Zablokowana pierwsza kolumna */
-    th:first-child,
-    td:first-child {
-      position: sticky;
-      left: 0;
       z-index: 1;
-      background-color: #f0f0f0;
+      min-width: 40px;
     }
 
-    /* Domy z dodatkowym tłem */
-    td:first-child {
-      background-color: white;
-      z-index: 1;
-    }
-
-    .weekend {
+    #kalendarz .weekend {
       background-color: #f9f9f9;
     }
 
-    .occupied-full {
+    #kalendarz .occupied-full {
       background-color: #ff4d4d;
       color: white;
       font-weight: bold;
     }
 
-    .occupied-am {
+    #kalendarz .occupied-am {
       background: linear-gradient(to bottom, #ffcccc 50%, white 50%);
       color: #b30000;
       font-weight: bold;
     }
 
-    .occupied-pm {
+    #kalendarz .occupied-pm {
       background: linear-gradient(to top, #ffcccc 50%, white 50%);
       color: #b30000;
       font-weight: bold;
     }
 
-    .multi {
-      background: linear-gradient(to bottom, #ffcccc 50%, #ffe6e6 50%);
-      color: #b30000;
-      font-weight: bold;
+    #kalendarz .available {
+      background-color: #e8f5e9;
     }
 
-    .past-day {
-      opacity: 0.5;
-      background-color: #f0f0f0 !important;
-    }
-
-    p {
-      margin: 0;
+    #kalendarz .name {
+      font-size: 0.8em;
+      font-weight: normal;
+      margin-top: 2px;
       line-height: 1.2;
     }
 
+    /* Style dla wyszukiwarki */
+    .search-form {
+      padding: 15px;
+    }
+    
+    .form-row {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 15px;
+      width: 100%;
+    }
+    
+    .form-group {
+      flex: 1;
+      min-width: 0;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    
+    input[type="date"], select {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 16px;
+      width: 100%;
+    }
+    
+    button {
+      padding: 8px 12px;
+      background: #4CAF50;
+      color: white;
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    
+    button:hover {
+      background: #45a049;
+    }
+    
+    .error {
+      color: #f44336;
+      font-weight: bold;
+      margin-top: 10px;
+      display: none;
+    }
+    
+    .results {
+      margin-top: 20px;
+      width: 100%;
+    }
+    
+    .result-item {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 15px;
+      margin-bottom: 10px;
+      background: white;
+      width: 100%;
+    }
+    
+    .available {
+      color: #4CAF50;
+      font-weight: bold;
+    }
+    
+    .not-available {
+      color: #f44336;
+      font-weight: bold;
+    }
+    
+    .partially-available {
+      color: #FF9800;
+      font-weight: bold;
+    }
+    
+    .conflict-day {
+      margin-right: 10px;
+      display: inline-block;
+    }
+
     @media (max-width: 768px) {
-      th, td {
+      #kalendarz th, #kalendarz td {
         font-size: 12px;
         padding: 4px;
       }
-      button {
-        font-size: 14px;
-        padding: 6px 10px;
+      
+      #kalendarz th:first-child,
+      #kalendarz td:first-child {
+        width: 80px;
+      }
+
+      .form-row {
+        flex-direction: column;
+        gap: 10px;
       }
     }
   </style>
 </head>
 <body>
-  <div id="controls">
-    <button id="prev-month">&lt; Poprzedni</button>
-    <span id="current-month"></span>
-    <button id="next-month">Następny &gt;</button>
-  </div>
+  <div class="container">
+    <h1>Kalendarz rezerwacji domków</h1>
+    
+    <!-- Sekcja wyszukiwarki -->
+    <div class="section">
+      <h2 class="section-title">Wyszukiwarka wolnych terminów</h2>
+      
+      <div class="search-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="start-date">Data przyjazdu:</label>
+            <input type="date" id="start-date" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="end-date">Data wyjazdu:</label>
+            <input type="date" id="end-date" required>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="cottage">Domek (opcjonalne):</label>
+          <select id="cottage">
+            <option value="">Wszystkie domki</option>
+            <!-- Opcje zostaną wypełnione dynamicznie -->
+          </select>
+        </div>
+        
+        <button id="search-btn">Sprawdź dostępność</button>
+        <div id="error-message" class="error"></div>
+      </div>
+      
+      <div id="search-results" class="results"></div>
+    </div>
+    
+    <!-- Sekcja kalendarza -->
+    <div class="section">
+      <h2 class="section-title">Kalendarz rezerwacji</h2>
+      
+      <div id="kalendarz-controls">
+        <button id="prev-month">&lt; Poprzedni</button>
+        <span id="current-month"></span>
+        <button id="next-month">Następny &gt;</button>
+      </div>
 
-  <div id="kalendarz-wrapper">
-    <div id="kalendarz"></div>
+      <div id="kalendarz-wrapper">
+        <div id="kalendarz"></div>
+      </div>
+    </div>
   </div>
 
   <script>
     google.charts.load('current', { packages: ['corechart', 'table'] });
-    google.charts.setOnLoadCallback(drawCalendar);
+    google.charts.setOnLoadCallback(loadReservations);
 
+    // Zmienne globalne
     let currentYear, currentMonth;
     let rezerwacjeMap = {};
+    let allCottages = new Set();
+    const monthNames = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
 
+    // Funkcje pomocnicze
     function parseDateFromSheet(dateStr) {
       const date = new Date(dateStr);
       return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -173,15 +322,16 @@
       return day === 0 || day === 6;
     }
 
-    function isPastDay(date) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      return date < today;
+    function formatDisplayDate(date) {
+      return date.toLocaleDateString('pl-PL', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
     }
 
-    const monthNames = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
-
-    function drawCalendar() {
+    // Ładowanie danych
+    function loadReservations() {
       const query = new google.visualization.Query('https://docs.google.com/spreadsheets/d/1ktIEbiKcIvKHN3N8hkBz5_1UNDJa5a78xYNuf4hoWN4/gviz/tq?sheet=Rezerwacje');
       query.send(handleQueryResponse);
     }
@@ -189,82 +339,84 @@
     function handleQueryResponse(response) {
       if (response.isError()) {
         document.getElementById('kalendarz').innerHTML = 'Błąd w pobieraniu danych: ' + response.getMessage();
+        document.getElementById('error-message').textContent = 'Błąd w pobieraniu danych: ' + response.getMessage();
+        document.getElementById('error-message').style.display = 'block';
         return;
       }
 
       const data = response.getDataTable();
       const rows = data.getNumberOfRows();
       rezerwacjeMap = {};
+      allCottages = new Set();
 
       for (let i = 0; i < rows; i++) {
         const start = parseDateFromSheet(data.getValue(i, 0));
         const end = parseDateFromSheet(data.getValue(i, 1));
         const domek = data.getValue(i, 2);
         const osoba = data.getValue(i, 3);
-        // Zmiana: pobieramy tylko pierwszą literę imienia i pierwszą literę nazwiska
-        const inicjaly = osoba ? osoba.split(' ').map(name => name[0]).join('') : "";
+
+        allCottages.add(domek);
 
         const dStart = formatDateKey(start);
         const dEnd = formatDateKey(end);
 
-        addToMap(domek, dStart, 'pm', inicjaly);
+        addToMap(domek, dStart, 'pm', osoba);
 
         const tempDate = new Date(start);
         tempDate.setUTCDate(tempDate.getUTCDate() + 1);
         
         while (tempDate < end) {
           const fullDayKey = formatDateKey(tempDate);
-          addToMap(domek, fullDayKey, 'full', inicjaly);
+          addToMap(domek, fullDayKey, 'full', osoba);
           tempDate.setUTCDate(tempDate.getUTCDate() + 1);
         }
 
-        addToMap(domek, dEnd, 'am', inicjaly);
+        addToMap(domek, dEnd, 'am', osoba);
       }
 
+      // Inicjalizacja kalendarza
       const now = new Date();
       currentYear = now.getFullYear();
       currentMonth = now.getMonth();
       renderCalendar();
-      setupNavigation();
+      setupCalendarNavigation();
+
+      // Inicjalizacja wyszukiwarki
+      setupSearchForm();
     }
 
-    function addToMap(domek, dzien, typ, inicjaly) {
+    function addToMap(domek, dzien, typ, osoba) {
       const key = `${domek}_${dzien}`;
       if (!rezerwacjeMap[key]) rezerwacjeMap[key] = [];
-      rezerwacjeMap[key].push({ typ, inicjaly });
+      rezerwacjeMap[key].push({ typ, osoba });
     }
 
+    // Funkcje kalendarza
     function renderCalendar() {
       const kalendarzDiv = document.getElementById('kalendarz');
       document.getElementById('current-month').textContent = `${monthNames[currentMonth]} ${currentYear}`;
 
-      const datySet = new Set();
-      const domkiSet = new Set();
-
-      for (let key in rezerwacjeMap) {
-        const [domek, dzien] = key.split('_');
-        const date = new Date(dzien + 'T00:00:00Z');
-        if (date.getUTCFullYear() === currentYear && date.getUTCMonth() === currentMonth) {
-          datySet.add(dzien);
-          domkiSet.add(domek);
-        }
+      // Generuj wszystkie dni w bieżącym miesiącu
+      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+      const daty = [];
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(Date.UTC(currentYear, currentMonth, day));
+        daty.push(formatDateKey(date));
       }
 
-      const daty = Array.from(datySet).sort();
-      const domki = Array.from(domkiSet).sort();
-
-      if (daty.length === 0) {
-        kalendarzDiv.innerHTML = "<p style='text-align:center;'>Brak rezerwacji w tym miesiącu.</p>";
-        return;
-      }
+      const domki = Array.from(allCottages).sort();
 
       let html = '<table><thead><tr><th>Domek</th>';
+      
+      // Oblicz szerokość kolumn dni
+      const availableWidth = window.innerWidth - 120; // 120px na kolumnę z nazwami domków
+      const dayColumnWidth = Math.max(40, availableWidth / daty.length);
+      
       daty.forEach(d => {
         const date = new Date(d + 'T00:00:00Z');
         const dayNumber = date.getUTCDate();
         const isWeekendDay = isWeekend(date);
-        const isPast = isPastDay(date);
-        html += `<th class="${isWeekendDay ? 'weekend' : ''} ${isPast ? 'past-day' : ''}">${dayNumber}</th>`;
+        html += `<th class="${isWeekendDay ? 'weekend' : ''}" style="min-width: ${dayColumnWidth}px">${dayNumber}</th>`;
       });
       html += '</tr></thead><tbody>';
 
@@ -273,22 +425,25 @@
         daty.forEach(dzien => {
           const date = new Date(dzien + 'T00:00:00Z');
           const isWeekendDay = isWeekend(date);
-          const isPast = isPastDay(date);
           const key = `${domek}_${dzien}`;
           const wpisy = rezerwacjeMap[key];
 
           let cellClass = isWeekendDay ? 'weekend' : '';
-          if (isPast) cellClass += cellClass ? ' past-day' : 'past-day';
-          
           if (wpisy) {
             let klasy = new Set(wpisy.map(w => w.typ === 'full' ? 'occupied-full' : w.typ === 'pm' ? 'occupied-pm' : 'occupied-am'));
-            let klasa = 'multi';
+            let klasa = '';
             if (klasy.size === 1) klasa = [...klasy][0];
+            else if (klasy.has('full')) klasa = 'occupied-full';
+            else if (klasy.has('am') && klasy.has('pm')) klasa = 'occupied-full';
+            else if (klasy.has('am')) klasa = 'occupied-am';
+            else if (klasy.has('pm')) klasa = 'occupied-pm';
+            
             cellClass += cellClass ? ' ' + klasa : klasa;
 
-            let tekst = wpisy.map(w => `<p>Zajęte</p><p>${w.inicjaly}</p>`).join('');
-            html += `<td class="${cellClass}">${isPast ? '' : tekst}</td>`;
+            let tekst = wpisy.map(w => `<div class="name">${w.osoba}</div>`).join('');
+            html += `<td class="${cellClass}">${tekst}</td>`;
           } else {
+            cellClass += cellClass ? ' available' : 'available';
             html += `<td class="${cellClass}"></td>`;
           }
         });
@@ -299,7 +454,7 @@
       kalendarzDiv.innerHTML = html;
     }
 
-    function setupNavigation() {
+    function setupCalendarNavigation() {
       document.getElementById('prev-month').onclick = () => {
         currentMonth--;
         if (currentMonth < 0) {
@@ -317,6 +472,176 @@
         }
         renderCalendar();
       };
+
+      window.addEventListener('resize', function() {
+        if (document.getElementById('kalendarz').innerHTML !== '') {
+          renderCalendar();
+        }
+      });
+    }
+
+    // Funkcje wyszukiwarki
+    function setupSearchForm() {
+      // Wypełnij listę domków
+      const cottageSelect = document.getElementById('cottage');
+      Array.from(allCottages).sort().forEach(domek => {
+        const option = document.createElement('option');
+        option.value = domek;
+        option.textContent = domek;
+        cottageSelect.appendChild(option);
+      });
+
+      // Ustaw domyślne daty
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      document.getElementById('start-date').valueAsDate = today;
+      document.getElementById('end-date').valueAsDate = tomorrow;
+
+      // Dodaj obsługę przycisku wyszukiwania
+      document.getElementById('search-btn').addEventListener('click', searchAvailability);
+    }
+
+    function searchAvailability() {
+      const startDateInput = document.getElementById('start-date');
+      const endDateInput = document.getElementById('end-date');
+      const cottageSelect = document.getElementById('cottage');
+      const errorMessage = document.getElementById('error-message');
+      const resultsDiv = document.getElementById('search-results');
+
+      // Wyczyść poprzednie wyniki i błędy
+      resultsDiv.innerHTML = '';
+      errorMessage.style.display = 'none';
+
+      // Walidacja dat
+      const startDate = new Date(startDateInput.value);
+      const endDate = new Date(endDateInput.value);
+
+      if (!startDateInput.value || !endDateInput.value) {
+        errorMessage.textContent = 'Proszę wybrać obie daty.';
+        errorMessage.style.display = 'block';
+        return;
+      }
+
+      if (startDate >= endDate) {
+        errorMessage.textContent = 'Data wyjazdu musi być późniejsza niż data przyjazdu.';
+        errorMessage.style.display = 'block';
+        return;
+      }
+
+      const selectedCottage = cottageSelect.value;
+      const cottagesToCheck = selectedCottage ? [selectedCottage] : Array.from(allCottages);
+
+      // Sprawdź dostępność
+      const results = [];
+      cottagesToCheck.forEach(domek => {
+        const availability = checkCottageAvailability(domek, startDate, endDate);
+        results.push({ domek, availability });
+      });
+
+      // Wyświetl wyniki
+      if (results.length === 0) {
+        resultsDiv.innerHTML = '<p>Brak domków do sprawdzenia.</p>';
+        return;
+      }
+
+      results.forEach(result => {
+        const resultItem = document.createElement('div');
+        resultItem.className = 'result-item';
+        
+        let statusClass, statusText;
+        if (result.availability.isFullyAvailable) {
+          statusClass = 'available';
+          statusText = 'Dostępny w całym okresie';
+        } else if (result.availability.isPartiallyAvailable) {
+          statusClass = 'partially-available';
+          statusText = 'Dostępny częściowo';
+        } else {
+          statusClass = 'not-available';
+          statusText = 'Niedostępny w wybranym okresie';
+        }
+        
+        resultItem.innerHTML = `
+          <h3>${result.domek}</h3>
+          <p>Status: <span class="${statusClass}">${statusText}</span></p>
+          <p>Okres: ${formatDisplayDate(startDate)} - ${formatDisplayDate(endDate)}</p>
+        `;
+        
+        if (result.availability.conflictDates.length > 0) {
+          const conflictsDiv = document.createElement('div');
+          conflictsDiv.innerHTML = '<p>Zajęte dni:</p>';
+          
+          result.availability.conflictDates.forEach(date => {
+            const span = document.createElement('span');
+            span.className = 'conflict-day';
+            span.textContent = formatDisplayDate(date);
+            conflictsDiv.appendChild(span);
+          });
+          
+          resultItem.appendChild(conflictsDiv);
+        }
+        
+        resultsDiv.appendChild(resultItem);
+      });
+    }
+
+    function checkCottageAvailability(domek, startDate, endDate) {
+      const result = {
+        isFullyAvailable: true,
+        isPartiallyAvailable: false,
+        conflictDates: []
+      };
+
+      // Sprawdź dzień przyjazdu (PM)
+      const startKey = formatDateKey(startDate);
+      const startReservations = rezerwacjeMap[`${domek}_${startKey}`];
+      
+      if (startReservations) {
+        const pmConflict = startReservations.find(r => r.typ === 'pm' || r.typ === 'full');
+        if (pmConflict) {
+          result.isFullyAvailable = false;
+          result.conflictDates.push(new Date(startDate));
+        }
+      }
+
+      // Sprawdź dni pomiędzy (pełne dni)
+      const tempDate = new Date(startDate);
+      tempDate.setDate(tempDate.getDate() + 1);
+      
+      while (tempDate < endDate) {
+        const dayKey = formatDateKey(tempDate);
+        const dayReservations = rezerwacjeMap[`${domek}_${dayKey}`];
+        
+        if (dayReservations) {
+          const fullConflict = dayReservations.find(r => r.typ === 'full');
+          if (fullConflict) {
+            result.isFullyAvailable = false;
+            result.conflictDates.push(new Date(tempDate));
+          }
+        }
+        
+        tempDate.setDate(tempDate.getDate() + 1);
+      }
+
+      // Sprawdź dzień wyjazdu (AM)
+      const endKey = formatDateKey(endDate);
+      const endReservations = rezerwacjeMap[`${domek}_${endKey}`];
+      
+      if (endReservations) {
+        const amConflict = endReservations.find(r => r.typ === 'am' || r.typ === 'full');
+        if (amConflict) {
+          result.isFullyAvailable = false;
+          result.conflictDates.push(new Date(endDate));
+        }
+      }
+
+      // Sprawdź czy jest częściowo dostępny
+      if (!result.isFullyAvailable && result.conflictDates.length < (endDate - startDate) / (1000 * 60 * 60 * 24) + 1) {
+        result.isPartiallyAvailable = true;
+      }
+
+      return result;
     }
   </script>
 </body>
