@@ -224,6 +224,38 @@
       display: inline-block;
     }
 
+    /* Legenda */
+    .legend {
+      margin-top: 20px;
+      padding: 15px;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    .legend-item {
+      display: inline-block;
+      margin-right: 15px;
+      padding: 5px 10px;
+      border-radius: 5px;
+      color: #fff;
+    }
+
+    .legend-item.occupied-full {
+      background: #ff4d4d;
+    }
+
+    .legend-item.occupied-am {
+      background: linear-gradient(to right, #ffcccc 50%, #fff 50%);
+      color: #b30000;
+      border: 1px solid #ccc;
+    }
+
+    .legend-item.occupied-pm {
+      background: linear-gradient(to left, #ffcccc 50%, #fff 50%);
+      color: #b30000;
+      border: 1px solid #ccc;
+    }
+
     @media (max-width: 768px) {
       #kalendarz th, #kalendarz td {
         font-size: 12px;
@@ -238,6 +270,12 @@
       .form-row {
         flex-direction: column;
         gap: 10px;
+      }
+      
+      .legend-item {
+        display: block;
+        margin-bottom: 10px;
+        margin-right: 0;
       }
     }
   </style>
@@ -290,6 +328,13 @@
 
       <div id="kalendarz-wrapper">
         <div id="kalendarz"></div>
+      </div>
+      
+      <!-- Legenda -->
+      <div class="legend">
+        <span class="legend-item occupied-full">Zajęty cały dzień</span>
+        <span class="legend-item occupied-am">Zajęty rano (wyjazd)</span>
+        <span class="legend-item occupied-pm">Zajęty popołudniu (przyjazd)</span>
       </div>
     </div>
   </div>
@@ -430,24 +475,18 @@
 
           let cellClass = isWeekendDay ? 'weekend' : '';
           if (wpisy) {
-            let klasy = new Set(wpisy.map(w => 
-              w.typ === 'full' ? 'occupied-full' : 
-              w.typ === 'pm' ? 'occupied-pm' : 
-              'occupied-am'
-            ));
-            
+            // Ulepszona logika określania zajętości
+            let maAM = wpisy.some(w => w.typ === 'am');
+            let maPM = wpisy.some(w => w.typ === 'pm');
+            let maFull = wpisy.some(w => w.typ === 'full');
+
             let klasa = '';
-            if (klasy.size === 1) {
-              klasa = [...klasy][0];
-            } else if (klasy.has('occupied-full')) {
-              klasa = 'occupied-full';
-            } else if (klasy.has('occupied-am') && klasy.has('occupied-pm')) {
-              // ✅ dzień z wyjazdem rano i przyjazdem popołudniu → cały dzień zajęty
-              klasa = 'occupied-full';
-            } else if (klasy.has('occupied-am')) {
-              klasa = 'occupied-am';
-            } else if (klasy.has('occupied-pm')) {
-              klasa = 'occupied-pm';
+            if (maFull || (maAM && maPM)) {
+              klasa = 'occupied-full'; // 🔴 cały dzień zajęty
+            } else if (maAM) {
+              klasa = 'occupied-am';   // 🟡 zajęty rano
+            } else if (maPM) {
+              klasa = 'occupied-pm';   // 🟠 zajęty popołudniu
             }
             
             cellClass += cellClass ? ' ' + klasa : klasa;
