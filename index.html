@@ -409,7 +409,7 @@
       let html = '<table><thead><tr><th>Domek</th>';
       
       // Oblicz szerokość kolumn dni
-      const availableWidth = window.innerWidth - 120; // 120px na kolumnę z nazwami domków
+      const availableWidth = window.innerWidth - 120;
       const dayColumnWidth = Math.max(40, availableWidth / daty.length);
       
       daty.forEach(d => {
@@ -430,13 +430,25 @@
 
           let cellClass = isWeekendDay ? 'weekend' : '';
           if (wpisy) {
-            let klasy = new Set(wpisy.map(w => w.typ === 'full' ? 'occupied-full' : w.typ === 'pm' ? 'occupied-pm' : 'occupied-am'));
+            let klasy = new Set(wpisy.map(w => 
+              w.typ === 'full' ? 'occupied-full' : 
+              w.typ === 'pm' ? 'occupied-pm' : 
+              'occupied-am'
+            ));
+            
             let klasa = '';
-            if (klasy.size === 1) klasa = [...klasy][0];
-            else if (klasy.has('full')) klasa = 'occupied-full';
-            else if (klasy.has('am') && klasy.has('pm')) klasa = 'occupied-full';
-            else if (klasy.has('am')) klasa = 'occupied-am';
-            else if (klasy.has('pm')) klasa = 'occupied-pm';
+            if (klasy.size === 1) {
+              klasa = [...klasy][0];
+            } else if (klasy.has('occupied-full')) {
+              klasa = 'occupied-full';
+            } else if (klasy.has('occupied-am') && klasy.has('occupied-pm')) {
+              // ✅ dzień z wyjazdem rano i przyjazdem popołudniu → cały dzień zajęty
+              klasa = 'occupied-full';
+            } else if (klasy.has('occupied-am')) {
+              klasa = 'occupied-am';
+            } else if (klasy.has('occupied-pm')) {
+              klasa = 'occupied-pm';
+            }
             
             cellClass += cellClass ? ' ' + klasa : klasa;
 
@@ -482,7 +494,6 @@
 
     // Funkcje wyszukiwarki
     function setupSearchForm() {
-      // Wypełnij listę domków
       const cottageSelect = document.getElementById('cottage');
       Array.from(allCottages).sort().forEach(domek => {
         const option = document.createElement('option');
@@ -491,7 +502,6 @@
         cottageSelect.appendChild(option);
       });
 
-      // Ustaw domyślne daty
       const today = new Date();
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
@@ -499,7 +509,6 @@
       document.getElementById('start-date').valueAsDate = today;
       document.getElementById('end-date').valueAsDate = tomorrow;
 
-      // Dodaj obsługę przycisku wyszukiwania
       document.getElementById('search-btn').addEventListener('click', searchAvailability);
     }
 
@@ -510,11 +519,9 @@
       const errorMessage = document.getElementById('error-message');
       const resultsDiv = document.getElementById('search-results');
 
-      // Wyczyść poprzednie wyniki i błędy
       resultsDiv.innerHTML = '';
       errorMessage.style.display = 'none';
 
-      // Walidacja dat
       const startDate = new Date(startDateInput.value);
       const endDate = new Date(endDateInput.value);
 
@@ -533,115 +540,74 @@
       const selectedCottage = cottageSelect.value;
       const cottagesToCheck = selectedCottage ? [selectedCottage] : Array.from(allCottages);
 
-      // Sprawdź dostępność
       const results = [];
       cottagesToCheck.forEach(domek => {
         const availability = checkCottageAvailability(domek, startDate, endDate);
         results.push({ domek, availability });
       });
 
-      // Wyświetl wyniki
       if (results.length === 0) {
         resultsDiv.innerHTML = '<p>Brak domków do sprawdzenia.</p>';
         return;
       }
 
       results.forEach(result => {
-        const resultItem = document.createElement('div');
-        resultItem.className = 'result-item';
+        const div = document.createElement('div');
+        div.className = 'result-item';
         
-        let statusClass, statusText;
-        if (result.availability.isFullyAvailable) {
-          statusClass = 'available';
-          statusText = 'Dostępny w całym okresie';
-        } else if (result.availability.isPartiallyAvailable) {
-          statusClass = 'partially-available';
-          statusText = 'Dostępny częściowo';
+        let html = `<h3>${result.domek}</h3>`;
+        
+        if (result.availability.isAvailable) {
+          html += `<p class="available">Domek dostępny w wybranym terminie.</p>`;
         } else {
-          statusClass = 'not-available';
-          statusText = 'Niedostępny w wybranym okresie';
+          if (result.availability.conflicts.length > 0) {
+            html += `<p class="not-available">Domek niedostępny w wybranym terminie.</p>`;
+            html += '<p>Konflikty:</p><ul>';
+            result.availability.conflicts.forEach(conflict => {
+              html += `<li><span class="conflict-day">${formatDisplayDate(conflict.date)}</span> (${conflict.typ}) - ${conflict.osoba}</li>`;
+            });
+            html += '</ul>';
+          } else if (result.availability.partialAvailability) {
+            html += `<p class="partially-available">Domek częściowo dostępny w wybranym terminie.</p>`;
+          }
         }
         
-        resultItem.innerHTML = `
-          <h3>${result.domek}</h3>
-          <p>Status: <span class="${statusClass}">${statusText}</span></p>
-          <p>Okres: ${formatDisplayDate(startDate)} - ${formatDisplayDate(endDate)}</p>
-        `;
-        
-        if (result.availability.conflictDates.length > 0) {
-          const conflictsDiv = document.createElement('div');
-          conflictsDiv.innerHTML = '<p>Zajęte dni:</p>';
-          
-          result.availability.conflictDates.forEach(date => {
-            const span = document.createElement('span');
-            span.className = 'conflict-day';
-            span.textContent = formatDisplayDate(date);
-            conflictsDiv.appendChild(span);
-          });
-          
-          resultItem.appendChild(conflictsDiv);
-        }
-        
-        resultsDiv.appendChild(resultItem);
+        div.innerHTML = html;
+        resultsDiv.appendChild(div);
       });
     }
 
     function checkCottageAvailability(domek, startDate, endDate) {
-      const result = {
-        isFullyAvailable: true,
-        isPartiallyAvailable: false,
-        conflictDates: []
-      };
+      let isAvailable = true;
+      let conflicts = [];
+      let partialAvailability = false;
 
-      // Sprawdź dzień przyjazdu (PM)
-      const startKey = formatDateKey(startDate);
-      const startReservations = rezerwacjeMap[`${domek}_${startKey}`];
-      
-      if (startReservations) {
-        const pmConflict = startReservations.find(r => r.typ === 'pm' || r.typ === 'full');
-        if (pmConflict) {
-          result.isFullyAvailable = false;
-          result.conflictDates.push(new Date(startDate));
-        }
-      }
-
-      // Sprawdź dni pomiędzy (pełne dni)
-      const tempDate = new Date(startDate);
-      tempDate.setDate(tempDate.getDate() + 1);
-      
-      while (tempDate < endDate) {
-        const dayKey = formatDateKey(tempDate);
-        const dayReservations = rezerwacjeMap[`${domek}_${dayKey}`];
+      const checkDate = new Date(startDate);
+      while (checkDate < endDate) {
+        const dateKey = formatDateKey(new Date(Date.UTC(checkDate.getFullYear(), checkDate.getMonth(), checkDate.getDate())));
+        const key = `${domek}_${dateKey}`;
+        const wpisy = rezerwacjeMap[key];
         
-        if (dayReservations) {
-          const fullConflict = dayReservations.find(r => r.typ === 'full');
-          if (fullConflict) {
-            result.isFullyAvailable = false;
-            result.conflictDates.push(new Date(tempDate));
-          }
+        if (wpisy) {
+          wpisy.forEach(w => {
+            if (w.typ === 'full') {
+              isAvailable = false;
+              conflicts.push({ date: checkDate, typ: 'cały dzień', osoba: w.osoba });
+            } else if ((checkDate.getTime() === startDate.getTime() && w.typ === 'pm') ||
+                       (checkDate.getTime() === endDate.getTime() && w.typ === 'am')) {
+              isAvailable = false;
+              conflicts.push({ date: checkDate, typ: w.typ === 'pm' ? 'po południu' : 'rano', osoba: w.osoba });
+            } else {
+              partialAvailability = true;
+              conflicts.push({ date: checkDate, typ: w.typ === 'pm' ? 'po południu' : 'rano', osoba: w.osoba });
+            }
+          });
         }
         
-        tempDate.setDate(tempDate.getDate() + 1);
+        checkDate.setDate(checkDate.getDate() + 1);
       }
 
-      // Sprawdź dzień wyjazdu (AM)
-      const endKey = formatDateKey(endDate);
-      const endReservations = rezerwacjeMap[`${domek}_${endKey}`];
-      
-      if (endReservations) {
-        const amConflict = endReservations.find(r => r.typ === 'am' || r.typ === 'full');
-        if (amConflict) {
-          result.isFullyAvailable = false;
-          result.conflictDates.push(new Date(endDate));
-        }
-      }
-
-      // Sprawdź czy jest częściowo dostępny
-      if (!result.isFullyAvailable && result.conflictDates.length < (endDate - startDate) / (1000 * 60 * 60 * 24) + 1) {
-        result.isPartiallyAvailable = true;
-      }
-
-      return result;
+      return { isAvailable, conflicts, partialAvailability };
     }
   </script>
 </body>
